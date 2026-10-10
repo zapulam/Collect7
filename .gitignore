@@ -1,0 +1,24 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
+
+# Firebase emulator
+firebase-debug.log
+database-debug.log
+.firebase/
+
+# Local e2e screenshots
+e2e-shots/
