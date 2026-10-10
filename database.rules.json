@@ -1,0 +1,84 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$roomId": {
+        ".read": "$roomId.length === 6 && $roomId.matches(/^[A-HJKMNP-Z2-9]+$/)",
+        ".write": "$roomId.length === 6 && $roomId.matches(/^[A-HJKMNP-Z2-9]+$/)",
+        "meta": {
+          ".validate": "newData.hasChildren(['v', 'createdAt'])",
+          "v": { ".validate": "newData.isNumber()" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+        "host": {
+          ".validate": "newData.hasChildren(['tabId', 'at'])",
+          "tabId": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "at": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+        "presence": {
+          "$playerId": {
+            ".validate": "$playerId.length >= 6 && $playerId.length <= 32 && $playerId.matches(/^[a-z0-9]+$/)",
+            "$connectionId": {
+              ".validate": "$connectionId.length >= 6 && $connectionId.length <= 32 && $connectionId.matches(/^[a-z0-9]+$/) && newData.hasChildren(['at'])",
+              "at": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            }
+          }
+        },
+        "requests": {
+          "$requestId": {
+            ".validate": "$requestId.length <= 32 && newData.hasChildren(['type', 'clientId', 'playerId', 'gameId', 'at'])",
+            "type": { ".validate": "newData.val() === 'join' || newData.val() === 'hit' || newData.val() === 'stay' || newData.val() === 'choose'" },
+            "clientId": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 32 && newData.val().matches(/^[a-z0-9]+$/)" },
+            "playerId": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 32 && newData.val().matches(/^[a-z0-9]+$/)" },
+            "gameId": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "name": { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "turnSeq": { ".validate": "newData.isNumber()" },
+            "target": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 32 && newData.val().matches(/^[a-z0-9]+$/)" },
+            "at": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "game": {
+          ".validate": "newData.hasChildren(['v', 'gameId', 'phase', 'settings', 'seq'])",
+          "v": { ".validate": "newData.isNumber()" },
+          "gameId": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "phase": { ".validate": "newData.val() === 'lobby' || newData.val() === 'playing' || newData.val() === 'roundEnd' || newData.val() === 'gameOver'" },
+          "settings": {
+            ".validate": "newData.hasChildren(['target', 'turnSeconds'])",
+            "target": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000" },
+            "turnSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600" },
+            "$other": { ".validate": false }
+          },
+          "seq": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "order": {
+            "$i": { ".validate": "newData.isString() && newData.val().length <= 32" }
+          },
+          "players": {
+            "$playerId": {
+              ".validate": "$playerId.length <= 32 && newData.hasChildren(['name'])",
+              "name": { ".validate": "newData.isString() && newData.val().length <= 16" },
+              "left": { ".validate": "newData.isBoolean()" },
+              "$other": { ".validate": false }
+            }
+          },
+          "totals": {
+            "$playerId": { ".validate": "newData.isNumber()" }
+          },
+          "winner": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "discardCount": { ".validate": "newData.isNumber()" },
+          "history": { ".validate": true },
+          "round": { ".validate": true },
+          "deck": { ".validate": true },
+          "log": { ".validate": true },
+          "rejections": { ".validate": true },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
