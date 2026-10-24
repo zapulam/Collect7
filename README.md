@@ -18,8 +18,10 @@ Collect7 is a press-your-luck card game for 2 to 12 players. On your turn you ei
 - **🔁 Smart Turns**: Round-robin turns, a rotating dealer, and a reshuffle of the discard pile when the deck runs out
 - **⏱️ Turn Timer**: Optional timer that stays automatically for a stalled player
 - **🕹️ Master Controls**: Stay or choose for a stuck player, and remove players
-- **🔦 Spotlight Turns**: The big screen puts the current player's hand front and centre, with everyone else's score and a condensed hand along the bottom
+- **🔦 Spotlight Turns**: The big screen puts the current player's hand front and centre, with every player's score and a condensed, slightly overlapping hand always in seat order along the bottom
 - **🎞️ Card Flips & Counters**: New cards flip over one at a time and scores roll like an old mechanical counter, with stamps for a bust, a banked score, a freeze and Collect 7
+- **🔊 Sound Effects**: Card flips, landings, busts, banked scores, freezes and Collect 7 each have a sound on the big screen, with a mute button in the header
+- **📱 Animated Phones**: Phones flip each new card too, starting with the one dealt to you, and show a bold banner while you hold a Second Chance
 - **⏳ Paced Turns**: A 3, 4 or 5 second pause between turns locks the next player's phone, so nobody can rush
 - **📊 Phone Tally**: Per-number count of cards on the table and left in the deck, plus your chance of busting if you hit
 - **🏆 Scoring**: Round scores and running totals, with ties at the target forcing another round

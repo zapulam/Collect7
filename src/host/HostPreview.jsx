@@ -72,7 +72,7 @@ export default function HostPreview() {
   return (
     <>
       <Board roomId="PREVIEW" state={state} relay={relay} act={act} offset={0} onNewGame={restart} />
-      <div className="fixed bottom-2 right-2 z-50 flex items-center gap-1.5 rounded-full bg-gray-950/90 border border-white/10 px-2 py-1">
+      <div className="fixed top-14 left-2 z-50 flex items-center gap-1.5 rounded-full bg-gray-950/90 border border-white/10 px-2 py-1">
         <span className="text-xs text-gray-400 pl-1">Preview</span>
         <button type="button" className={button} onClick={() => setAuto((on) => !on)}>
           Bots: {auto ? 'on' : 'off'}

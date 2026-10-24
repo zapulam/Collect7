@@ -17,6 +17,7 @@ const SCENARIOS = {
   join: 'Join form',
   lobby: 'Lobby',
   turn: 'Your turn',
+  second: 'Second Chance',
   waiting: 'Waiting',
   roundEnd: 'Round over',
   gameOver: 'Game over',
@@ -50,6 +51,11 @@ function build(scenario) {
       return lobby([ME, ...OTHERS], 200);
     case 'turn':
       return playUntil(started(), (s) => myTurn(s) || s.phase !== 'playing');
+    case 'second': {
+      // You are dealt a Second Chance and then it is your turn.
+      const deck = ['second', '5', '7', '3', '4', '6', '8', '9', '10', '11', '12'];
+      return playUntil(run(lobby([ME, ...OTHERS], 200), [{ type: 'start', deck }]), (s) => myTurn(s) || s.phase !== 'playing');
+    }
     case 'waiting': {
       const mine = playUntil(started(), (s) => myTurn(s) || s.phase !== 'playing');
       const asked = mine.round?.pending;
