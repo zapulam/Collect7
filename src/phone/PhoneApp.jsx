@@ -1,5 +1,5 @@
 import { WifiOff } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Wordmark from '../components/Wordmark';
 import { primaryButton } from '../components/buttons';
 import { usePhoneRelay } from '../hooks/usePhoneRelay';
@@ -48,6 +48,10 @@ function CodeEntry({ title, note }) {
 // What the phone shows once it has the game: the name form, the lobby wait or the play view.
 export function PhoneRoom({ game, handle, hostOnline, offset }) {
   const [editingName, setEditingName] = useState(false);
+  // If this phone watched the lobby, the cards dealt when the game starts flip in; a phone that
+  // opens mid-game just shows its hand.
+  const sawLobby = useRef(false);
+  if (game.phase === 'lobby') sawLobby.current = true;
   const me = game.players[handle.playerId];
   const joined = me && !me.left;
 
@@ -82,7 +86,7 @@ export function PhoneRoom({ game, handle, hostOnline, offset }) {
   if (game.phase === 'lobby') {
     return <LobbyWait game={game} meId={handle.playerId} hostOnline={hostOnline} onRename={() => setEditingName(true)} />;
   }
-  return <PlayView game={game} handle={handle} hostOnline={hostOnline} offset={offset} />;
+  return <PlayView game={game} handle={handle} hostOnline={hostOnline} offset={offset} initialKnown={sawLobby.current ? 0 : undefined} />;
 }
 
 export default function PhoneApp({ initialRoom }) {
