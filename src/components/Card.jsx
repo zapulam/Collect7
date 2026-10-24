@@ -33,12 +33,13 @@ function Back({ delay }) {
 
 // A face-up card. `bad` rings it in red (the duplicate that busted a hand). `flipDelay` (ms)
 // makes it arrive face-down and turn over after that long, instead of the usual pop-in.
-export default function Card({ card, size = 'md', bad = false, animate = true, flipDelay = null, className = '' }) {
+export default function Card({ card, size = 'md', bad = false, animate = true, flipDelay = null, className = '', style }) {
   const s = SIZES[size];
   const flipping = flipDelay != null;
   const ring = bad ? 'ring-4 ring-red-500 ring-offset-2 ring-offset-gray-900' : 'ring-1 ring-white/25';
   const motion = flipping ? 'c7-flip' : animate ? 'c7-deal' : '';
-  const timing = flipping ? { animationDelay: `${flipDelay}ms` } : null;
+  // `style` is for layout (a margin, say); the flip's delay is added to it.
+  const timing = { ...style, ...(flipping ? { animationDelay: `${flipDelay}ms` } : null) };
   const base = `relative shrink-0 select-none flex flex-col items-center justify-center font-black shadow-lg shadow-black/40 ${s.box} ${ring} ${motion} ${className}`;
 
   if (isNumber(card)) {
