@@ -45,39 +45,9 @@ function CodeEntry({ title, note }) {
   );
 }
 
-export default function PhoneApp({ initialRoom }) {
-  const roomId = normalizeRoomId(initialRoom);
-  const room = usePhoneRelay(relayConfigured ? roomId : null);
+// What the phone shows once it has the game: the name form, the lobby wait or the play view.
+export function PhoneRoom({ game, handle, hostOnline, offset }) {
   const [editingName, setEditingName] = useState(false);
-  useWakeLock(Boolean(roomId));
-
-  if (!relayConfigured) {
-    return (
-      <Screen>
-        <Wordmark className="text-4xl" />
-        <p className="text-gray-300">This copy of Collect7 isn&apos;t connected to a database yet.</p>
-      </Screen>
-    );
-  }
-  if (!roomId) return <CodeEntry title="Join a game" note="Type the code shown on the big screen." />;
-  if (room.failed) {
-    return (
-      <Screen>
-        <WifiOff size={40} className="text-gray-400" />
-        <p className="text-lg">Couldn&apos;t connect.</p>
-        <button type="button" className={primaryButton} onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </Screen>
-    );
-  }
-  if (!room.loaded || !room.handle) return <Spinner label="Connecting…" />;
-  if (!room.exists) {
-    return <CodeEntry title="Game not found" note={`There's no game called ${roomId}. Check the code on the big screen.`} />;
-  }
-  const { game, handle } = room;
-  if (!game) return <Spinner label="Waiting for the big screen…" />;
-
   const me = game.players[handle.playerId];
   const joined = me && !me.left;
 
@@ -110,7 +80,41 @@ export default function PhoneApp({ initialRoom }) {
     );
   }
   if (game.phase === 'lobby') {
-    return <LobbyWait game={game} meId={handle.playerId} hostOnline={room.hostOnline} onRename={() => setEditingName(true)} />;
+    return <LobbyWait game={game} meId={handle.playerId} hostOnline={hostOnline} onRename={() => setEditingName(true)} />;
   }
-  return <PlayView game={game} handle={handle} hostOnline={room.hostOnline} offset={room.offset} />;
+  return <PlayView game={game} handle={handle} hostOnline={hostOnline} offset={offset} />;
+}
+
+export default function PhoneApp({ initialRoom }) {
+  const roomId = normalizeRoomId(initialRoom);
+  const room = usePhoneRelay(relayConfigured ? roomId : null);
+  useWakeLock(Boolean(roomId));
+
+  if (!relayConfigured) {
+    return (
+      <Screen>
+        <Wordmark className="text-4xl" />
+        <p className="text-gray-300">This copy of Collect7 isn&apos;t connected to a database yet.</p>
+      </Screen>
+    );
+  }
+  if (!roomId) return <CodeEntry title="Join a game" note="Type the code shown on the big screen." />;
+  if (room.failed) {
+    return (
+      <Screen>
+        <WifiOff size={40} className="text-gray-400" />
+        <p className="text-lg">Couldn&apos;t connect.</p>
+        <button type="button" className={primaryButton} onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </Screen>
+    );
+  }
+  if (!room.loaded || !room.handle) return <Spinner label="Connecting…" />;
+  if (!room.exists) {
+    return <CodeEntry title="Game not found" note={`There's no game called ${roomId}. Check the code on the big screen.`} />;
+  }
+  const { game, handle } = room;
+  if (!game) return <Spinner label="Waiting for the big screen…" />;
+  return <PhoneRoom game={game} handle={handle} hostOnline={room.hostOnline} offset={room.offset} />;
 }
