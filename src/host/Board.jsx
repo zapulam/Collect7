@@ -1,6 +1,5 @@
 import { Layers, QrCode, SkipForward, Timer, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import EventFeed from '../components/EventFeed';
 import Modal from '../components/Modal';
 import Wordmark from '../components/Wordmark';
 import { celebrate } from '../components/confetti';
@@ -36,11 +35,13 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const seconds = rawSeconds == null ? null : Math.min(rawSeconds, state.settings.turnSeconds);
   const gate = useCountdown(r?.unlockAt ?? null, offset);
   const name = useCallback((id) => state.players[id]?.name ?? 'Someone', [state.players]);
-  // Seven numbers: wait for the card to turn over before the confetti.
-  const onEvent = useCallback((event) => {
-    if (event.type === 'collect') setTimeout(celebrate, 1000);
-  }, []);
   const hold = useStage(state.log);
+  // Seven numbers: confetti once the card has turned over.
+  useEffect(() => {
+    if (hold?.kind !== 'collect') return;
+    const id = setTimeout(celebrate, hold.revealMs + 200);
+    return () => clearTimeout(id);
+  }, [hold]);
   // How many cards each player had at the last render, so the spotlight can flip the new ones.
   const shownCounts = useRef({});
   const shownRound = useRef(null);
@@ -127,7 +128,6 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
         ) : (
           <p className="text-gray-400">{state.phase === 'playing' ? 'Dealing…' : 'Round over'}</p>
         )}
-        <EventFeed log={state.log} name={name} onEvent={onEvent} className="absolute left-1/2 top-full z-30 -translate-x-1/2 mt-1 w-max max-w-[90vw]" />
       </div>
 
       {inPlay ? (
