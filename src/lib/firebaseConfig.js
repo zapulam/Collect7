@@ -1,9 +1,8 @@
 // Collect7's Firebase project. Only the Realtime Database is used and there's no sign-in,
 // so the project id and database URL are all the app needs (see README > Firebase setup).
-// TODO: replace these placeholders with the values from your Firebase project.
 export const firebaseConfig = {
-  projectId: "",
-  databaseURL: "",
+  projectId: "collect7-b4930",
+  databaseURL: "https://collect7-b4930-default-rtdb.firebaseio.com",
 };
 
 // Local development against the database emulator: set VITE_FIREBASE_EMULATOR to a port
