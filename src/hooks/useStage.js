@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CARD_REVEAL_MS } from '../lib/engine';
 
-// How long a card takes to turn over, and the gap between cards when several arrive at once.
+// How long a card takes to turn over, and how far apart cards arrive when several come at once
+// (a Flip Three): each finishes turning before the next starts.
 export const FLIP_MS = 800;
-export const STAGGER_MS = 650;
+export const STAGGER_MS = CARD_REVEAL_MS;
 
 // How long the result stays on screen after the cards have turned over.
 const LINGER_MS = { draw: 1300, flip3: 1600, bust: 2000, collect: 3000, stay: 2000, freeze: 2200 };
@@ -30,19 +32,19 @@ export function pickHold(events) {
 }
 
 // The moment the big screen is holding on, or null. It clears itself when the time is up.
+// New events are read while rendering, not in an effect, so the very first frame that shows the
+// new state already holds on the right player (an effect would show the next player first).
 export function useStage(log) {
-  const seen = useRef(log.at(-1)?.id ?? 0);
+  const last = log.at(-1)?.id ?? 0;
+  const [seen, setSeen] = useState(last);
   const [hold, setHold] = useState(null);
 
-  useEffect(() => {
-    const last = log.at(-1)?.id ?? 0;
-    if (last < seen.current) seen.current = 0; // a new game restarted the numbering
-    const fresh = log.filter((e) => e.id > seen.current);
-    if (!fresh.length) return;
-    seen.current = last;
-    const next = pickHold(fresh);
+  if (last !== seen) {
+    setSeen(last);
+    // A new game restarts the numbering, so everything in the log is new.
+    const next = pickHold(log.filter((e) => e.id > (last < seen ? 0 : seen)));
     if (next) setHold(next);
-  }, [log]);
+  }
 
   useEffect(() => {
     if (!hold) return;

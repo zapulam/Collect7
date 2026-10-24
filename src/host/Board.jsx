@@ -43,7 +43,9 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const hold = useStage(state.log);
   // How many cards each player had at the last render, so the spotlight can flip the new ones.
   const shownCounts = useRef({});
+  const shownRound = useRef(null);
   useEffect(() => {
+    shownRound.current = r?.n ?? null;
     for (const [id, hand] of Object.entries(r?.hands ?? {})) shownCounts.current[id] = hand.cards.length;
   });
 
@@ -61,6 +63,8 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const seats = shown.filter((id) => r.hands[id].status !== 'left');
   const focusId = [hold?.pid, pending?.pid, flip3?.pid, r.cursor].find((id) => seats.includes(id)) ?? seats[0];
   const afterFocus = seats.slice(seats.indexOf(focusId) + 1).concat(seats.slice(0, seats.indexOf(focusId)));
+  // An action card its owner has just drawn and is still choosing a target for.
+  const choosing = pending && pending.kind !== 'turn' && pending.pid === focusId ? r.stack.findLast((task) => task.t === 'choose' && task.pid === focusId) : null;
   const upNext = inPlay && pending?.kind === 'turn' ? (afterFocus.find((id) => r.hands[id].status === 'active') ?? null) : null;
   const strip = seats
     .filter((id) => id !== focusId)
@@ -131,7 +135,9 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
           <Spotlight
             key={focusId}
             hold={hold?.pid === focusId ? hold : null}
-            initialKnown={shownCounts.current[focusId] ?? r.hands[focusId].cards.length}
+            initialKnown={shownRound.current != null && shownRound.current !== r.n ? 0 : (shownCounts.current[focusId] ?? r.hands[focusId].cards.length)}
+            actionCard={choosing?.card ?? null}
+            actionKey={r.turnSeq}
             name={name(focusId)}
             hand={r.hands[focusId]}
             total={state.totals[focusId] ?? 0}

@@ -27,6 +27,9 @@ export const TIMER_OPTIONS = [0, 15, 30, 60];
 export const PACE_OPTIONS = [3, 4, 5];
 export const DEFAULT_PACE = 4;
 export const HIT_BEAT_MS = 1500;
+// The big screen turns each Flip Three card over in turn, this long apart, so the next
+// decision waits for them.
+export const CARD_REVEAL_MS = 1000;
 export const CHOICE_KINDS = ['freeze', 'flip3', 'second'];
 const LOG_SIZE = 30;
 
@@ -270,6 +273,7 @@ function startRound(s, ctx) {
     deadline: null, // server time the pending decision times out, if the timer is on
     cursor: dealer, // the last player asked to Hit or Stay
     lastAsked: null, // who the last decision was for, to tell a repeat Hit from a new turn
+    flipped: 0, // cards dealt by Flip Three since the last decision, which the screen shows one at a time
     unlockAt: null, // server time the pending decision opens to phones (the pause between turns)
     collected: null, // who got seven different numbers
     exhausted: false,
@@ -304,8 +308,9 @@ function ask(s, pending, ctx) {
   const r = s.round;
   r.pending = pending;
   r.turnSeq += 1;
-  r.unlockAt = ctx.now + (r.lastAsked === pending.pid ? HIT_BEAT_MS : paceOf(s) * 1000);
+  r.unlockAt = ctx.now + (r.lastAsked === pending.pid ? HIT_BEAT_MS : paceOf(s) * 1000) + r.flipped * CARD_REVEAL_MS;
   r.lastAsked = pending.pid;
+  r.flipped = 0;
   // The turn timer starts once the phone unlocks.
   r.deadline = s.settings.turnSeconds ? r.unlockAt + s.settings.turnSeconds * 1000 : null;
 }
@@ -398,6 +403,7 @@ function giveCard(s, pid, card, flip3Task, via) {
   const r = s.round;
   const hand = r.hands[pid];
   emit(s, { type: 'draw', pid, card, via });
+  if (via === 'flip3') r.flipped += 1;
   if (isNumber(card)) {
     if (hand.cards.includes(card)) {
       if (hand.second) {
