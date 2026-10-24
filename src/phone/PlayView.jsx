@@ -5,6 +5,7 @@ import { sortForDisplay } from '../lib/cards';
 import EventFeed from '../components/EventFeed';
 import Wordmark from '../components/Wordmark';
 import { celebrate } from '../components/confetti';
+import { useCardFlips } from '../hooks/useCardFlips';
 import { useCountdown } from '../hooks/useCountdown';
 import { useToast } from '../hooks/useToast';
 import { STATUS_LABELS } from '../lib/describe';
@@ -30,10 +31,13 @@ function headline({ status, myTurn, myChoice, waitingOn, flip3Mine, phase, gate 
   return { text: 'Dealing…', tone: 'text-gray-300' };
 }
 
-export default function PlayView({ game, handle, hostOnline, offset }) {
+// `initialKnown` is how many of your cards were already showing when this opened; leave it out
+// to flip only what arrives afterwards, or pass 0 to flip the cards dealt right away.
+export default function PlayView({ game, handle, hostOnline, offset, initialKnown }) {
   const meId = handle.playerId;
   const r = game.round;
   const hand = r?.hands[meId] ?? OUT;
+  const { delayFor, faceUp, allUp } = useCardFlips(hand.cards.length, { initialKnown, resetKey: r?.n });
   const pending = game.phase === 'playing' ? r?.pending : null;
   const myTurn = pending?.kind === 'turn' && pending.pid === meId;
   const myChoice = pending && pending.kind !== 'turn' && pending.pid === meId ? pending : null;
@@ -80,13 +84,16 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
   };
 
   const total = game.totals[meId] ?? 0;
-  const live = hand.status === 'bust' ? 0 : handScore(hand.cards);
-  const unique = new Set(numbersIn(hand.cards)).size;
+  // A bust or a seventh number shows once its card has turned over, and only face-up cards count.
+  const status = !allUp && (hand.status === 'bust' || hand.status === 'collected') ? 'active' : hand.status;
+  const counted = hand.cards.slice(0, faceUp);
+  const live = status === 'bust' ? 0 : handScore(counted);
+  const unique = new Set(numbersIn(counted)).size;
   const cards = sortForDisplay(hand.cards);
   const lastIndex = hand.cards.length - 1;
   const flip3Mine = r.flip3?.pid === meId && game.phase === 'playing';
   const head = headline({
-    status: hand.status,
+    status,
     myTurn,
     myChoice,
     waitingOn: pending ? name(pending.pid) : null,
@@ -128,10 +135,10 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
                 <span className={`text-2xl font-black tabular-nums ${seconds <= 5 ? 'text-red-400' : 'text-indigo-200'}`}>{seconds}s</span>
               )}
             </div>
-            <div className={`flex flex-wrap gap-2 min-h-[5.5rem] ${hand.status === 'bust' ? 'c7-shake' : ''}`} data-testid="my-cards">
+            <div className={`flex flex-wrap gap-2 min-h-[5.5rem] ${status === 'bust' ? 'c7-shake' : ''}`} data-testid="my-cards">
               {cards.length ? (
                 cards.map(({ card, i }) => (
-                  <Card key={i} card={card} size="lg" bad={hand.status === 'bust' && i === lastIndex} />
+                  <Card key={i} card={card} size="lg" bad={status === 'bust' && i === lastIndex} animate={false} flipDelay={delayFor(i)} />
                 ))
               ) : (
                 <p className="self-center text-gray-500">{hand.status === 'left' ? "You're not in this round." : 'No cards yet'}</p>
@@ -139,18 +146,25 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
             </div>
             <div className="flex items-center gap-3 text-sm">
               <span className="font-semibold">
-                This round: <span className="tabular-nums text-lg font-black">{hand.status === 'bust' ? 0 : live}</span>
+                This round: <span className="tabular-nums text-lg font-black">{live}</span>
               </span>
               <span className="text-gray-400 tabular-nums">{unique}/7 numbers</span>
-              {hand.second && (
-                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-rose-500/25 px-2 py-0.5 text-xs font-bold text-rose-100">
-                  <Heart size={12} fill="currentColor" /> Second Chance
-                </span>
-              )}
-              {!hand.second && hand.status !== 'active' && (
-                <span className="ml-auto text-xs text-gray-400">{STATUS_LABELS[hand.status]}</span>
-              )}
+              {hand.status !== 'active' && <span className="ml-auto text-xs text-gray-400">{STATUS_LABELS[status]}</span>}
             </div>
+
+            {hand.second && hand.status === 'active' && (
+              <div
+                className="c7-pop c7-glow flex items-center gap-3 rounded-2xl border border-rose-300/60 bg-rose-500/20 px-4 py-3 [--glow:rgba(251,113,133,0.55)]"
+                role="status"
+                data-testid="second-chance"
+              >
+                <Heart size={34} className="shrink-0 text-rose-300" fill="currentColor" />
+                <span className="text-left leading-tight">
+                  <span className="block text-lg font-black text-rose-100">You have a Second Chance</span>
+                  <span className="block text-sm text-rose-100/80">Draw a duplicate and it saves you once.</span>
+                </span>
+              </div>
+            )}
 
             {hand.status === 'active' && game.phase === 'playing' ? (
               <div className="grid grid-cols-2 gap-3">
