@@ -28,7 +28,7 @@ const COPY = {
 };
 
 // Bottom sheet for picking who an action card goes to.
-export default function TargetSheet({ pending, game, meId, seconds, busy, onChoose }) {
+export default function TargetSheet({ pending, game, meId, seconds, busy, locked, onChoose }) {
   const [picked, setPicked] = useState(null);
   const { Icon, title, note, verb, color } = COPY[pending.kind];
   const name = (id) => (id === meId ? 'yourself' : game.players[id]?.name);
@@ -84,12 +84,12 @@ export default function TargetSheet({ pending, game, meId, seconds, busy, onChoo
         </ul>
         <button
           type="button"
-          disabled={!chosen || busy}
+          disabled={!chosen || busy || locked}
           onClick={() => onChoose(chosen)}
           className={`min-h-[56px] rounded-2xl text-lg font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-40 ${color}`}
           data-testid="confirm-target"
         >
-          {busy ? 'Sending…' : chosen ? verb(name(chosen)) : 'Pick a player'}
+          {busy ? 'Sending…' : locked ? 'Get ready…' : chosen ? verb(name(chosen)) : 'Pick a player'}
         </button>
       </div>
     </div>

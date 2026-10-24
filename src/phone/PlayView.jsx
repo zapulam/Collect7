@@ -16,9 +16,10 @@ import TargetSheet from './TargetSheet';
 const PENDING_TIMEOUT_MS = 5000;
 const OUT = { cards: [], status: 'left', second: false };
 
-function headline({ status, myTurn, myChoice, waitingOn, flip3Mine, phase }) {
+function headline({ status, myTurn, myChoice, waitingOn, flip3Mine, phase, gate }) {
   if (phase !== 'playing') return { text: 'Round over', tone: 'text-gray-300' };
   if (flip3Mine) return { text: 'Flip Three! Taking three cards…', tone: 'text-orange-300' };
+  if ((myTurn || myChoice) && gate > 0) return { text: 'Get ready…', tone: 'text-indigo-200' };
   if (myTurn) return { text: 'Your turn!', tone: 'text-white' };
   if (myChoice) return { text: 'Choose a player', tone: 'text-white' };
   if (status === 'bust') return { text: 'Bust!', tone: 'text-red-400' };
@@ -36,7 +37,10 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
   const pending = game.phase === 'playing' ? r?.pending : null;
   const myTurn = pending?.kind === 'turn' && pending.pid === meId;
   const myChoice = pending && pending.kind !== 'turn' && pending.pid === meId ? pending : null;
-  const seconds = useCountdown(pending ? r.deadline : null, offset);
+  const rawSeconds = useCountdown(pending ? r.deadline : null, offset);
+  // The timer starts once the pause between turns is over, so it never reads above its length.
+  const seconds = rawSeconds == null ? null : Math.min(rawSeconds, game.settings.turnSeconds);
+  const gate = useCountdown(pending ? r.unlockAt : null, offset); // seconds until the pause is over
   const [toast, showToast] = useToast();
   const [sent, setSent] = useState(null); // { key, turnSeq }
   const busy = Boolean(sent && sent.turnSeq === r?.turnSeq);
@@ -88,8 +92,10 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
     waitingOn: pending ? name(pending.pid) : null,
     flip3Mine,
     phase: game.phase,
+    gate,
   });
-  const canAct = myTurn && hostOnline && !busy;
+  const locked = gate > 0;
+  const canAct = myTurn && hostOnline && !busy && !locked;
 
   return (
     <main className="min-h-dvh text-gray-100 select-none [touch-action:manipulation] [-webkit-touch-callout:none]">
@@ -117,7 +123,8 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
               <h1 className={`text-2xl font-black ${head.tone}`} data-testid="headline">
                 {head.text}
               </h1>
-              {seconds != null && (myTurn || myChoice) && (
+              {locked && (myTurn || myChoice) && <span className="text-2xl font-black tabular-nums text-indigo-200">{gate}</span>}
+              {!locked && seconds != null && (myTurn || myChoice) && (
                 <span className={`text-2xl font-black tabular-nums ${seconds <= 5 ? 'text-red-400' : 'text-indigo-200'}`}>{seconds}s</span>
               )}
             </div>
@@ -200,6 +207,7 @@ export default function PlayView({ game, handle, hostOnline, offset }) {
           meId={meId}
           seconds={seconds}
           busy={busy}
+          locked={locked}
           onChoose={(target) => send('choose', { target })}
         />
       )}

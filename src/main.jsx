@@ -9,9 +9,13 @@ const params = new URLSearchParams(window.location.search);
 const room = params.get('room');
 const HostApp = lazy(() => import('./host/HostApp'));
 const PhoneApp = lazy(() => import('./phone/PhoneApp'));
-// /?preview shows the phone UI against a local fake game. Development only; the production
-// build drops it.
-const Preview = import.meta.env.DEV && params.has('preview') ? lazy(() => import('./phone/Preview')) : null;
+// /?preview shows the phone UI against a local fake game, and /?preview=host the big screen
+// with bot players. Development only; the production build drops them.
+const Preview = !import.meta.env.DEV || !params.has('preview')
+  ? null
+  : params.get('preview') === 'host'
+    ? lazy(() => import('./host/HostPreview'))
+    : lazy(() => import('./phone/Preview'));
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

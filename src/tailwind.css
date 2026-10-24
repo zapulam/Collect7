@@ -2,3 +2,11 @@
 
 /* Laptop-height windows: `short:` tightens spacing so the board fits without scrolling. */
 @custom-variant short (@media (max-height: 800px));
+
+/* Tailwind resets buttons to the default arrow; make every enabled one show it can be clicked. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
