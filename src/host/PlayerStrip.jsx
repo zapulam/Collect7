@@ -1,5 +1,6 @@
 import { Crown, Heart, X } from 'lucide-react';
 import Card from '../components/Card';
+import Odometer from '../components/Odometer';
 import { sortForDisplay } from '../lib/cards';
 import { STATUS_LABELS, STATUS_STYLES } from '../lib/describe';
 import { handScore } from '../lib/scoring';
@@ -36,9 +37,9 @@ export default function PlayerStrip({ players, target, upNext, onRemove }) {
                 <h3 className="truncate font-bold leading-tight">{name}</h3>
                 {isDealer && <span className="shrink-0 rounded bg-white/10 px-1 text-[10px] font-bold text-gray-300">D</span>}
                 {hand.second && <Heart size={12} className="shrink-0 text-rose-300" fill="currentColor" aria-label="Second Chance" />}
-                <span className="ml-auto text-xl font-black tabular-nums leading-none" title={`Total (first to ${target})`}>
-                  {total >= target && <Crown size={14} className="inline mr-1 text-amber-300 -mt-1" />}
-                  {total}
+                <span className="ml-auto inline-flex items-center gap-1 text-xl font-black" title={`Total (first to ${target})`}>
+                  {total >= target && <Crown size={14} className="text-amber-300" />}
+                  <Odometer value={total} />
                 </span>
                 {onRemove && (
                   <button

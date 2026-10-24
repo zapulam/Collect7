@@ -1,11 +1,12 @@
 import { Layers, QrCode, SkipForward, Timer, Trash2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import EventFeed from '../components/EventFeed';
 import Modal from '../components/Modal';
 import Wordmark from '../components/Wordmark';
 import { celebrate } from '../components/confetti';
 import { dangerButton, secondaryButton } from '../components/buttons';
 import { useCountdown } from '../hooks/useCountdown';
+import { useStage } from '../hooks/useStage';
 import { randomId } from '../lib/room';
 import GameOver from './GameOver';
 import JoinPanel from './JoinPanel';
@@ -35,9 +36,16 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const seconds = rawSeconds == null ? null : Math.min(rawSeconds, state.settings.turnSeconds);
   const gate = useCountdown(r?.unlockAt ?? null, offset);
   const name = useCallback((id) => state.players[id]?.name ?? 'Someone', [state.players]);
+  // Seven numbers: wait for the card to turn over before the confetti.
   const onEvent = useCallback((event) => {
-    if (event.type === 'collect') celebrate();
+    if (event.type === 'collect') setTimeout(celebrate, 1000);
   }, []);
+  const hold = useStage(state.log);
+  // How many cards each player had at the last render, so the spotlight can flip the new ones.
+  const shownCounts = useRef({});
+  useEffect(() => {
+    for (const [id, hand] of Object.entries(r?.hands ?? {})) shownCounts.current[id] = hand.cards.length;
+  });
 
   if (!r) return null;
   const shown = state.order.filter((id) => r.hands[id]);
@@ -47,9 +55,11 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const flip3 = r.stack?.findLast((task) => task.t === 'flip3');
 
   // Whose hand fills the screen: whoever the game is waiting on, else the last player asked.
-  const inPlay = state.phase === 'playing';
+  // The big screen can stay on a player for a moment after the engine has moved on, so their
+  // bust or banked score plays out before the next turn (and before the round's scores).
+  const inPlay = state.phase === 'playing' || Boolean(hold);
   const seats = shown.filter((id) => r.hands[id].status !== 'left');
-  const focusId = [pending?.pid, flip3?.pid, r.cursor].find((id) => seats.includes(id)) ?? seats[0];
+  const focusId = [hold?.pid, pending?.pid, flip3?.pid, r.cursor].find((id) => seats.includes(id)) ?? seats[0];
   const afterFocus = seats.slice(seats.indexOf(focusId) + 1).concat(seats.slice(0, seats.indexOf(focusId)));
   const upNext = inPlay && pending?.kind === 'turn' ? (afterFocus.find((id) => r.hands[id].status === 'active') ?? null) : null;
   const strip = seats
@@ -119,6 +129,9 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
       {inPlay ? (
         <>
           <Spotlight
+            key={focusId}
+            hold={hold?.pid === focusId ? hold : null}
+            initialKnown={shownCounts.current[focusId] ?? r.hands[focusId].cards.length}
             name={name(focusId)}
             hand={r.hands[focusId]}
             total={state.totals[focusId] ?? 0}
@@ -151,8 +164,8 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
         </section>
       )}
 
-      {state.phase === 'roundEnd' && !dialog && <RoundScores state={state} onNext={() => act({ type: 'nextRound' })} />}
-      {state.phase === 'gameOver' && !dialog && (
+      {state.phase === 'roundEnd' && !dialog && !hold && <RoundScores state={state} onNext={() => act({ type: 'nextRound' })} />}
+      {state.phase === 'gameOver' && !dialog && !hold && (
         <GameOver state={state} onPlayAgain={() => act({ type: 'playAgain', gameId: randomId() })} onNewGame={onNewGame} />
       )}
 
