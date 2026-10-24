@@ -8,6 +8,7 @@ const SIZES = {
   md: { box: 'w-14 h-20 rounded-xl', text: 'text-3xl', mod: 'text-xl', icon: 22, label: 'text-[8px]' },
   lg: { box: 'w-[3.9rem] h-[5.5rem] rounded-xl', text: 'text-4xl', mod: 'text-2xl', icon: 26, label: 'text-[9px]' },
   xl: { box: 'w-[5.25rem] h-[7.5rem] rounded-2xl', text: 'text-5xl', mod: 'text-3xl', icon: 34, label: 'text-[11px]' },
+  '2xl': { box: 'w-[7.5rem] h-[10.5rem] rounded-3xl', text: 'text-7xl', mod: 'text-5xl', icon: 48, label: 'text-sm' },
 };
 
 const ACTION_STYLE = {

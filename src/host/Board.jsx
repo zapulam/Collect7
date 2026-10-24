@@ -13,6 +13,8 @@ import PlayerPanel from './PlayerPanel';
 import RelayStatus from './RelayStatus';
 import RoundScores from './RoundScores';
 import Settings from './Settings';
+import Spotlight from './Spotlight';
+import PlayerStrip from './PlayerStrip';
 
 // Columns for 1..12 players, so every hand fits on one screen.
 const COLUMNS = [1, 1, 2, 3, 2, 3, 3, 4, 4, 3, 4, 4, 4];
@@ -43,6 +45,23 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const cardSize = shown.length <= 4 ? 'xl' : shown.length <= 6 ? 'lg' : shown.length <= 9 ? 'md' : 'sm';
   const pending = state.phase === 'playing' ? r.pending : null;
   const flip3 = r.stack?.findLast((task) => task.t === 'flip3');
+
+  // Whose hand fills the screen: whoever the game is waiting on, else the last player asked.
+  const inPlay = state.phase === 'playing';
+  const seats = shown.filter((id) => r.hands[id].status !== 'left');
+  const focusId = [pending?.pid, flip3?.pid, r.cursor].find((id) => seats.includes(id)) ?? seats[0];
+  const afterFocus = seats.slice(seats.indexOf(focusId) + 1).concat(seats.slice(0, seats.indexOf(focusId)));
+  const upNext = inPlay && pending?.kind === 'turn' ? (afterFocus.find((id) => r.hands[id].status === 'active') ?? null) : null;
+  const strip = seats
+    .filter((id) => id !== focusId)
+    .map((id) => ({
+      id,
+      name: name(id),
+      hand: r.hands[id],
+      total: state.totals[id] ?? 0,
+      online: relay.online.has(id),
+      isDealer: r.dealer === id,
+    }));
 
   return (
     <main className="min-h-dvh text-gray-100 flex flex-col">
@@ -97,25 +116,40 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
         <EventFeed log={state.log} name={name} onEvent={onEvent} className="absolute left-1/2 top-full z-30 -translate-x-1/2 mt-1 w-max max-w-[90vw]" />
       </div>
 
-      <section className={`grid ${GRID[columns]} gap-4 short:gap-2 px-5 pb-5 flex-1 content-center`}>
-        {shown.map((id) => (
-          <PlayerPanel
-            key={id}
-            name={name(id)}
-            hand={r.hands[id]}
-            total={state.totals[id] ?? 0}
-            points={r.over ? (r.points?.[id] ?? 0) : null}
+      {inPlay ? (
+        <>
+          <Spotlight
+            name={name(focusId)}
+            hand={r.hands[focusId]}
+            total={state.totals[focusId] ?? 0}
             target={state.settings.target}
-            waitingOn={pending?.pid === id ? pending.kind : null}
-            seconds={pending?.pid === id ? seconds : null}
-            flip3Left={flip3?.pid === id ? flip3.left : null}
-            isDealer={r.dealer === id}
-            online={relay.online.has(id)}
-            cardSize={cardSize}
-            onRemove={state.players[id]?.left ? null : () => setDialog({ remove: id })}
+            isDealer={r.dealer === focusId}
+            online={relay.online.has(focusId)}
+            flip3Left={flip3?.pid === focusId ? flip3.left : null}
           />
-        ))}
-      </section>
+          <PlayerStrip players={strip} target={state.settings.target} upNext={upNext} onRemove={(id) => setDialog({ remove: id })} />
+        </>
+      ) : (
+        <section className={`grid ${GRID[columns]} gap-4 short:gap-2 px-5 pb-5 flex-1 content-center`}>
+          {shown.map((id) => (
+            <PlayerPanel
+              key={id}
+              name={name(id)}
+              hand={r.hands[id]}
+              total={state.totals[id] ?? 0}
+              points={r.over ? (r.points?.[id] ?? 0) : null}
+              target={state.settings.target}
+              waitingOn={pending?.pid === id ? pending.kind : null}
+              seconds={pending?.pid === id ? seconds : null}
+              flip3Left={flip3?.pid === id ? flip3.left : null}
+              isDealer={r.dealer === id}
+              online={relay.online.has(id)}
+              cardSize={cardSize}
+              onRemove={state.players[id]?.left ? null : () => setDialog({ remove: id })}
+            />
+          ))}
+        </section>
+      )}
 
       {state.phase === 'roundEnd' && !dialog && <RoundScores state={state} onNext={() => act({ type: 'nextRound' })} />}
       {state.phase === 'gameOver' && !dialog && (
