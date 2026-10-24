@@ -51,6 +51,7 @@
             ".validate": "newData.hasChildren(['target', 'turnSeconds'])",
             "target": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000" },
             "turnSeconds": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600" },
+            "pace": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10" },
             "$other": { ".validate": false }
           },
           "seq": { ".validate": "newData.isNumber() && newData.val() >= 0" },
