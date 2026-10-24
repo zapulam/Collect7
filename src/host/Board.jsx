@@ -28,7 +28,10 @@ const ASKING = {
 export default function Board({ roomId, state, relay, act, offset, onNewGame }) {
   const r = state.round;
   const [dialog, setDialog] = useState(null); // 'join' | 'settings' | 'newGame' | { remove: id }
-  const seconds = useCountdown(r?.deadline, offset);
+  const rawSeconds = useCountdown(r?.deadline, offset);
+  // The timer starts once the pause between turns is over, so it never reads above its length.
+  const seconds = rawSeconds == null ? null : Math.min(rawSeconds, state.settings.turnSeconds);
+  const gate = useCountdown(r?.unlockAt ?? null, offset);
   const name = useCallback((id) => state.players[id]?.name ?? 'Someone', [state.players]);
   const onEvent = useCallback((event) => {
     if (event.type === 'collect') celebrate();
@@ -75,8 +78,9 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
         {pending ? (
           <>
             <p className="text-xl font-bold" data-testid="asking">
-              {ASKING[pending.kind](name(pending.pid))}
-              {seconds != null && <span className={`ml-3 tabular-nums ${seconds <= 5 ? 'text-red-400' : 'text-indigo-200'}`}>{seconds}s</span>}
+              {gate > 0 ? `${name(pending.pid)} is up next…` : ASKING[pending.kind](name(pending.pid))}
+              {gate > 0 && <span className="ml-3 tabular-nums text-indigo-200">{gate}s</span>}
+              {gate === 0 && seconds != null && <span className={`ml-3 tabular-nums ${seconds <= 5 ? 'text-red-400' : 'text-indigo-200'}`}>{seconds}s</span>}
             </p>
             <button
               type="button"

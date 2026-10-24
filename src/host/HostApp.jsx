@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { useHostRelay } from '../hooks/useHostRelay';
 import { useTurnTimeout } from '../hooks/useTurnTimeout';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { DEFAULT_TARGET, gameReducer } from '../lib/engine';
+import { DEFAULT_PACE, DEFAULT_TARGET, gameReducer } from '../lib/engine';
 import { relayConfigured } from '../lib/firebaseConfig';
 import { generateRoomId, loadHostSession, randomId, randomSeed, saveHostSession } from '../lib/room';
 import { publicView } from '../lib/wire';
@@ -53,6 +53,7 @@ export default function HostApp() {
         gameId: randomId(),
         target: settings.target ?? state?.settings.target ?? DEFAULT_TARGET,
         turnSeconds: settings.turnSeconds ?? state?.settings.turnSeconds ?? 0,
+        pace: settings.pace ?? state?.settings.pace ?? DEFAULT_PACE,
       });
       setRoomId(generateRoomId());
     },
