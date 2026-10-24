@@ -1,8 +1,10 @@
 import { Crown, Heart, Layers, Snowflake } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 import Card from '../components/Card';
 import Odometer from '../components/Odometer';
-import { FLIP_MS, STAGGER_MS } from '../hooks/useStage';
+import { useEffect } from 'react';
+import { useCardFlips } from '../hooks/useCardFlips';
+import { FLIP_MS } from '../hooks/useStage';
+import { flip, land } from '../lib/sound';
 import { sortForDisplay } from '../lib/cards';
 import { STATUS_LABELS, STATUS_STYLES } from '../lib/describe';
 import { handScore, numbersIn } from '../lib/scoring';
@@ -37,37 +39,16 @@ function Stamp({ kind, delay, detail }) {
 // at a time and the score only counts a card once it is face-up. `initialKnown` is how many
 // cards the screen had already shown for this player, so a card dealt while someone else held
 // the spotlight still flips when theirs comes up. `hold` is the result being shown, if any.
-export default function Spotlight({ name, hand, total, target, isDealer, online, flip3Left, hold, initialKnown, actionCard, actionKey }) {
+export default function Spotlight({ name, hand, total, target, isDealer, online, flip3Left, hold, initialKnown, round, actionCard, actionKey }) {
   const count = hand.cards.length;
-  const known = useRef(Math.min(initialKnown, count));
-  const firstNew = useRef(known.current);
-  const delays = useRef(new Map()); // card index -> ms before it flips, kept for as long as the card is there
-  const [revealed, setRevealed] = useState(known.current);
-
-  if (count < known.current) {
-    // A new round emptied the hand, so what is dealt now is all new.
-    known.current = 0;
-    delays.current.clear();
-    if (revealed > 0) setRevealed(0);
-  }
-  if (count > known.current) {
-    firstNew.current = known.current;
-    for (let k = known.current; k < count; k++) delays.current.set(k, (k - known.current) * STAGGER_MS);
-    known.current = count;
-  }
-  if (revealed > count) setRevealed(count);
-
+  const { delayFor, allUp, faceUp } = useCardFlips(count, { initialKnown, resetKey: round, onFlip: flip, onLand: land });
+  // The drawn action card has its own flip.
   useEffect(() => {
-    const timers = [];
-    for (let k = firstNew.current; k < count; k++) {
-      const wait = (delays.current.get(k) ?? 0) + FLIP_MS;
-      timers.push(setTimeout(() => setRevealed((n) => Math.max(n, k + 1)), wait));
-    }
-    return () => timers.forEach(clearTimeout);
-  }, [count]);
-
-  const faceUp = Math.min(revealed, count);
-  const allUp = faceUp >= count;
+    if (!actionCard) return;
+    flip();
+    const id = setTimeout(land, FLIP_MS);
+    return () => clearTimeout(id);
+  }, [actionCard, actionKey]);
   // A bust or a seventh number is announced only once its card has turned over.
   const status = !allUp && (hand.status === 'bust' || hand.status === 'collected') ? 'active' : hand.status;
   const counted = hand.cards.slice(0, faceUp);
@@ -143,7 +124,7 @@ export default function Spotlight({ name, hand, total, target, isDealer, online,
               size={cardSize}
               bad={status === 'bust' && i === lastIndex}
               animate={false}
-              flipDelay={delays.current.get(i) ?? null}
+              flipDelay={delayFor(i)}
             />
           ))
         ) : (

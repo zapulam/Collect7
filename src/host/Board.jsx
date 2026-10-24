@@ -1,4 +1,4 @@
-import { Layers, QrCode, SkipForward, Timer, Trash2 } from 'lucide-react';
+import { Layers, QrCode, SkipForward, Timer, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../components/Modal';
 import Wordmark from '../components/Wordmark';
@@ -7,6 +7,7 @@ import { dangerButton, secondaryButton } from '../components/buttons';
 import { useCountdown } from '../hooks/useCountdown';
 import { useStage } from '../hooks/useStage';
 import { randomId } from '../lib/room';
+import * as sound from '../lib/sound';
 import GameOver from './GameOver';
 import JoinPanel from './JoinPanel';
 import PlayerPanel from './PlayerPanel';
@@ -17,6 +18,9 @@ import Spotlight from './Spotlight';
 import PlayerStrip from './PlayerStrip';
 
 // Columns for 1..12 players, so every hand fits on one screen.
+// What plays when a turn's result lands.
+const OUTCOME_SOUNDS = { bust: sound.bust, stay: sound.bank, freeze: sound.freeze, collect: sound.collect };
+
 const COLUMNS = [1, 1, 2, 3, 2, 3, 3, 4, 4, 3, 4, 4, 4];
 const GRID = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' };
 
@@ -36,12 +40,30 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   const gate = useCountdown(r?.unlockAt ?? null, offset);
   const name = useCallback((id) => state.players[id]?.name ?? 'Someone', [state.players]);
   const hold = useStage(state.log);
-  // Seven numbers: confetti once the card has turned over.
+  // The sound for the result, and confetti for seven numbers, once the cards have turned over.
   useEffect(() => {
-    if (hold?.kind !== 'collect') return;
-    const id = setTimeout(celebrate, hold.revealMs + 200);
-    return () => clearTimeout(id);
+    if (!hold) return;
+    const timers = [];
+    const play = OUTCOME_SOUNDS[hold.kind];
+    if (play) timers.push(setTimeout(play, hold.kind === 'bust' || hold.kind === 'collect' ? hold.revealMs : 0));
+    if (hold.kind === 'collect') timers.push(setTimeout(celebrate, hold.revealMs + 200));
+    return () => timers.forEach(clearTimeout);
   }, [hold]);
+  // Browsers keep sound off until the page has been clicked or a key pressed.
+  useEffect(() => {
+    const unlock = () => sound.unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+  const [muted, setMuted] = useState(sound.isMuted);
+  const toggleMuted = () => {
+    sound.setMuted(!muted);
+    setMuted(!muted);
+  };
   // How many cards each player had at the last render, so the spotlight can flip the new ones.
   const shownCounts = useRef({});
   const shownRound = useRef(null);
@@ -67,16 +89,15 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
   // An action card its owner has just drawn and is still choosing a target for.
   const choosing = pending && pending.kind !== 'turn' && pending.pid === focusId ? r.stack.findLast((task) => task.t === 'choose' && task.pid === focusId) : null;
   const upNext = inPlay && pending?.kind === 'turn' ? (afterFocus.find((id) => r.hands[id].status === 'active') ?? null) : null;
-  const strip = seats
-    .filter((id) => id !== focusId)
-    .map((id) => ({
-      id,
-      name: name(id),
-      hand: r.hands[id],
-      total: state.totals[id] ?? 0,
-      online: relay.online.has(id),
-      isDealer: r.dealer === id,
-    }));
+  // Everyone, always in seat order; the player in the spotlight is marked in place.
+  const strip = seats.map((id) => ({
+    id,
+    name: name(id),
+    hand: r.hands[id],
+    total: state.totals[id] ?? 0,
+    online: relay.online.has(id),
+    isDealer: r.dealer === id,
+  }));
 
   return (
     <main className="min-h-dvh text-gray-100 flex flex-col">
@@ -98,6 +119,15 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
           <RelayStatus relay={relay} />
           <button type="button" className={`${secondaryButton} !px-3 !py-2`} onClick={() => setDialog('join')} title="Show the join code">
             <QrCode size={18} />
+          </button>
+          <button
+            type="button"
+            className={`${secondaryButton} !px-3 !py-2`}
+            onClick={toggleMuted}
+            aria-pressed={muted}
+            title={muted ? 'Sound is off' : 'Sound is on'}
+          >
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           <button type="button" className={`${secondaryButton} !px-3 !py-2`} onClick={() => setDialog('settings')} title="Turn timer">
             <Timer size={18} />
@@ -134,6 +164,7 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
         <>
           <Spotlight
             key={focusId}
+            round={r.n}
             hold={hold?.pid === focusId ? hold : null}
             initialKnown={shownRound.current != null && shownRound.current !== r.n ? 0 : (shownCounts.current[focusId] ?? r.hands[focusId].cards.length)}
             actionCard={choosing?.card ?? null}
@@ -146,7 +177,7 @@ export default function Board({ roomId, state, relay, act, offset, onNewGame }) 
             online={relay.online.has(focusId)}
             flip3Left={flip3?.pid === focusId ? flip3.left : null}
           />
-          <PlayerStrip players={strip} target={state.settings.target} upNext={upNext} onRemove={(id) => setDialog({ remove: id })} />
+          <PlayerStrip players={strip} target={state.settings.target} currentId={focusId} upNext={upNext} onRemove={(id) => setDialog({ remove: id })} />
         </>
       ) : (
         <section className={`grid ${GRID[columns]} gap-4 short:gap-2 px-5 pb-5 flex-1 content-center`}>
