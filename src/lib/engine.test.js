@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildDeck, DECK_SIZE, seededRng } from './cards.js';
-import { gameReducer, MAX_PLAYERS, seatedIds } from './engine.js';
+import { CARD_REVEAL_MS, DEFAULT_PACE, gameReducer, HIT_BEAT_MS, MAX_PLAYERS, seatedIds } from './engine.js';
 import { handScore, bustChance, findWinner } from './scoring.js';
 import { fromWire, publicView, sanitizeRequest, toWire } from './wire.js';
 
@@ -282,10 +282,88 @@ describe('a round', () => {
   });
 });
 
+describe('pause between turns', () => {
+  const phone = (s, type, playerId, now, extra = {}) =>
+    gameReducer(s, { type, source: 'phone', gameId: s.gameId, playerId, clientId: `c${playerId}`, turnSeq: s.round.turnSeq, now, ...extra });
+
+  it('locks the first turn for the pace, then lets the phone through', () => {
+    const s = setup(['3', '5', '7', '9']);
+    expect(s.settings.pace).toBe(DEFAULT_PACE);
+    expect(s.round.unlockAt).toBe(1000 + DEFAULT_PACE * 1000);
+    expect(phone(s, 'hit', AMY, 1000 + DEFAULT_PACE * 1000 - 1)).toBe(s);
+    expect(phone(s, 'stay', AMY, 1000)).toBe(s);
+    expect(hand(phone(s, 'hit', AMY, 1000 + DEFAULT_PACE * 1000), AMY).cards).toEqual(['3', '9']);
+  });
+
+  it('makes the next player wait the full pace, but someone asked again only a short beat', () => {
+    let s = setup(['3', '5', '7', '9', '4', '6'], { ids: [AMY, BEN] });
+    const open = s.round.unlockAt;
+    s = phone(s, 'hit', AMY, open);
+    expect(pending(s).pid).toBe(BEN);
+    expect(s.round.unlockAt).toBe(open + DEFAULT_PACE * 1000);
+    s = phone(s, 'stay', BEN, s.round.unlockAt);
+    expect(pending(s).pid).toBe(AMY);
+    expect(s.round.unlockAt).toBe(open + 2 * DEFAULT_PACE * 1000);
+    // Amy is the only one left, so each Hit asks her again straight away.
+    s = phone(s, 'hit', AMY, s.round.unlockAt);
+    expect(pending(s).pid).toBe(AMY);
+    expect(s.round.unlockAt).toBe(open + 2 * DEFAULT_PACE * 1000 + HIT_BEAT_MS);
+  });
+
+  it('applies to target choices, but never to the big screen itself', () => {
+    let s = setup(['3', '5', '7', 'freeze'], { ids: [AMY, BEN, CAT] });
+    const open = s.round.unlockAt;
+    s = phone(s, 'hit', AMY, open);
+    expect(pending(s).kind).toBe('freeze');
+    const target = pending(s).options[0];
+    expect(phone(s, 'choose', AMY, open, { target })).toBe(s);
+    expect(phone(s, 'choose', AMY, s.round.unlockAt, { target })).not.toBe(s);
+    // Master controls and the timer ignore the pause.
+    expect(hand(act(s, 'skip', { turnSeq: s.round.turnSeq }), AMY).status).toBe('frozen');
+  });
+
+  it('waits for each Flip Three card to be shown before the next decision opens', () => {
+    let s = setup(['3', '5', '7', 'flip3', '1', '2', '4']);
+    s = hit(s, AMY);
+    expect(pending(s).kind).toBe('flip3');
+    s = choose(s, AMY, BEN);
+    expect(hand(s, BEN).cards).toEqual(['5', 'flip3', '1', '2', '4']);
+    expect(pending(s).pid).toBe(BEN);
+    expect(s.round.unlockAt).toBe(1000 + DEFAULT_PACE * 1000 + 3 * CARD_REVEAL_MS);
+  });
+
+  it('starts the turn timer after the pause, and every round starts with a full pause', () => {
+    let s = setup(['3', '5', '7', '9'], { ids: [AMY, BEN], turnSeconds: 30 });
+    expect(s.round.deadline).toBe(s.round.unlockAt + 30000);
+    s = stay(s, AMY);
+    s = stay(s, BEN);
+    s = act(s, 'nextRound', { now: 50000 });
+    expect(s.round.unlockAt).toBe(50000 + DEFAULT_PACE * 1000);
+  });
+
+  it('changes the pace from a fixed set, and it travels over the wire', () => {
+    let s = gameReducer(null, { type: 'create', gameId: 'game01' });
+    expect(gameReducer(s, { type: 'settings', pace: 7 })).toBe(s);
+    s = gameReducer(s, { type: 'settings', pace: 5 });
+    expect(s.settings.pace).toBe(5);
+    expect(gameReducer(s, { type: 'settings', pace: 5 })).toBe(s);
+    expect(fromWire(toWire(publicView(s))).settings.pace).toBe(5);
+    const started = setup(['3', '5', '7', '9']);
+    const round = fromWire(toWire(publicView(started))).round;
+    expect(round.unlockAt).toBe(started.round.unlockAt);
+  });
+
+  it('treats a game saved before pacing existed as the default pace', () => {
+    const old = setup(['3', '5', '7', '9']);
+    delete old.settings.pace;
+    expect(publicView(old).settings.pace).toBe(DEFAULT_PACE);
+  });
+});
+
 describe('timer and master controls', () => {
   it('sets a deadline and stays on timeout', () => {
     let s = setup(['3', '5', '7', '9'], { turnSeconds: 15 });
-    expect(s.round.deadline).toBe(1000 + 15000);
+    expect(s.round.deadline).toBe(1000 + DEFAULT_PACE * 1000 + 15000);
     expect(act(s, 'timeout', { turnSeq: s.round.turnSeq - 1 })).toBe(s);
     s = act(s, 'timeout', { turnSeq: s.round.turnSeq });
     expect(hand(s, AMY).status).toBe('stayed');

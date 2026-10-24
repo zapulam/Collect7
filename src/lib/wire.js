@@ -3,7 +3,7 @@
 // Realtime Database drops empty arrays and objects, can hand arrays back as objects, and
 // rejects `undefined`, so everything is normalized on the way in and out.
 import { NUMBERS, isCard } from './cards.js';
-import { CHOICE_KINDS, NAME_MAX } from './engine.js';
+import { CHOICE_KINDS, DEFAULT_PACE, NAME_MAX, paceOf } from './engine.js';
 
 const PHASES = ['lobby', 'playing', 'roundEnd', 'gameOver'];
 const STATUSES = ['active', 'stayed', 'frozen', 'bust', 'collected', 'left'];
@@ -20,7 +20,7 @@ export function publicView(s) {
     v: 1,
     gameId: s.gameId,
     phase: s.phase,
-    settings: s.settings,
+    settings: { ...s.settings, pace: paceOf(s) },
     order: s.order,
     players: Object.fromEntries(
       Object.entries(s.players).map(([id, p]) => [id, p.left ? { name: p.name, left: true } : { name: p.name }])
@@ -34,6 +34,7 @@ export function publicView(s) {
       pending: r.pending,
       turnSeq: r.turnSeq,
       deadline: r.deadline,
+      unlockAt: r.unlockAt,
       flip3: flip3 ? { pid: flip3.pid, left: flip3.left } : null,
       points: r.points,
       over: r.over,
@@ -100,7 +101,11 @@ export function fromWire(raw) {
   return {
     gameId: str(raw.gameId),
     phase: raw.phase,
-    settings: { target: num(raw.settings?.target, 200), turnSeconds: num(raw.settings?.turnSeconds) },
+    settings: {
+      target: num(raw.settings?.target, 200),
+      turnSeconds: num(raw.settings?.turnSeconds),
+      pace: num(raw.settings?.pace, DEFAULT_PACE),
+    },
     order: list(raw.order).filter((id) => isId(id) && players[id]),
     players,
     totals: numbers(raw.totals),
@@ -112,6 +117,7 @@ export function fromWire(raw) {
       pending: pending(r.pending),
       turnSeq: num(r.turnSeq),
       deadline: typeof r.deadline === 'number' ? r.deadline : null,
+      unlockAt: typeof r.unlockAt === 'number' ? r.unlockAt : null,
       flip3: r.flip3 && isId(r.flip3.pid) ? { pid: r.flip3.pid, left: num(r.flip3.left) } : null,
       points: r.points ? numbers(r.points) : null,
       over: r.over === true,
