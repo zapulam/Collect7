@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { buildDeck } from '../lib/cards';
 import { gameReducer } from '../lib/engine';
 import { handScore, numbersIn } from '../lib/scoring';
 import Board from './Board';
 
 // Development only: open /?preview=host to watch the big screen with bot players, no
-// database needed. The bots tap through the real engine like phones do, so the pause
+// database needed (add &flip3 to see a Flip Three right away). The bots tap through the real engine like phones do, so the pause
 // between turns applies to them too.
 const GAME_ID = 'previewhost01';
 const BOTS = ['Ava', 'Ben', 'Cy', 'Dee', 'Eli'].map((name, i) => ({
@@ -17,7 +18,11 @@ const RELAY = { status: 'live', online: new Set(BOTS.map((bot) => bot.playerId))
 function fresh() {
   let s = gameReducer(null, { type: 'create', gameId: GAME_ID, target: 100, turnSeconds: 0, pace: 3 });
   for (const bot of BOTS) s = gameReducer(s, { type: 'join', source: 'phone', gameId: GAME_ID, ...bot });
-  return gameReducer(s, { type: 'start', now: Date.now(), seed: Date.now() });
+  // /?preview=host&flip3 stacks the deck so Ava's first Hit draws a Flip Three, followed by three numbers.
+  const deck = new URLSearchParams(window.location.search).has('flip3')
+    ? ['3', '5', '7', '8', '9', 'flip3', '1', '2', '4', ...buildDeck()]
+    : undefined;
+  return gameReducer(s, { type: 'start', deck, now: Date.now(), seed: Date.now() });
 }
 
 // A simple player: keeps hitting until it has a few numbers and a decent score.

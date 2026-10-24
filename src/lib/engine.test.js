@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildDeck, DECK_SIZE, seededRng } from './cards.js';
-import { DEFAULT_PACE, gameReducer, HIT_BEAT_MS, MAX_PLAYERS, seatedIds } from './engine.js';
+import { CARD_REVEAL_MS, DEFAULT_PACE, gameReducer, HIT_BEAT_MS, MAX_PLAYERS, seatedIds } from './engine.js';
 import { handScore, bustChance, findWinner } from './scoring.js';
 import { fromWire, publicView, sanitizeRequest, toWire } from './wire.js';
 
@@ -320,6 +320,16 @@ describe('pause between turns', () => {
     expect(phone(s, 'choose', AMY, s.round.unlockAt, { target })).not.toBe(s);
     // Master controls and the timer ignore the pause.
     expect(hand(act(s, 'skip', { turnSeq: s.round.turnSeq }), AMY).status).toBe('frozen');
+  });
+
+  it('waits for each Flip Three card to be shown before the next decision opens', () => {
+    let s = setup(['3', '5', '7', 'flip3', '1', '2', '4']);
+    s = hit(s, AMY);
+    expect(pending(s).kind).toBe('flip3');
+    s = choose(s, AMY, BEN);
+    expect(hand(s, BEN).cards).toEqual(['5', 'flip3', '1', '2', '4']);
+    expect(pending(s).pid).toBe(BEN);
+    expect(s.round.unlockAt).toBe(1000 + DEFAULT_PACE * 1000 + 3 * CARD_REVEAL_MS);
   });
 
   it('starts the turn timer after the pause, and every round starts with a full pause', () => {

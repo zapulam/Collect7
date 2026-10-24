@@ -7,6 +7,8 @@ import { sortForDisplay } from '../lib/cards';
 import { STATUS_LABELS, STATUS_STYLES } from '../lib/describe';
 import { handScore, numbersIn } from '../lib/scoring';
 
+const ACTION_NAMES = { freeze: 'Freeze', flip3: 'Flip Three', second: 'a Second Chance' };
+
 const STAMPS = {
   bust: { text: 'Bust!', style: 'text-red-400 border-red-400' },
   stay: { text: 'Banked', style: 'text-emerald-300 border-emerald-300' },
@@ -35,7 +37,7 @@ function Stamp({ kind, delay, detail }) {
 // at a time and the score only counts a card once it is face-up. `initialKnown` is how many
 // cards the screen had already shown for this player, so a card dealt while someone else held
 // the spotlight still flips when theirs comes up. `hold` is the result being shown, if any.
-export default function Spotlight({ name, hand, total, target, isDealer, online, flip3Left, hold, initialKnown }) {
+export default function Spotlight({ name, hand, total, target, isDealer, online, flip3Left, hold, initialKnown, actionCard, actionKey }) {
   const count = hand.cards.length;
   const known = useRef(Math.min(initialKnown, count));
   const firstNew = useRef(known.current);
@@ -43,10 +45,12 @@ export default function Spotlight({ name, hand, total, target, isDealer, online,
   const [revealed, setRevealed] = useState(known.current);
 
   if (count < known.current) {
-    // A new round emptied the hand.
-    known.current = count;
+    // A new round emptied the hand, so what is dealt now is all new.
+    known.current = 0;
     delays.current.clear();
-  } else if (count > known.current) {
+    if (revealed > 0) setRevealed(0);
+  }
+  if (count > known.current) {
     firstNew.current = known.current;
     for (let k = known.current; k < count; k++) delays.current.set(k, (k - known.current) * STAGGER_MS);
     known.current = count;
@@ -120,12 +124,30 @@ export default function Spotlight({ name, hand, total, target, isDealer, online,
         className={`flex flex-wrap content-center justify-center gap-4 min-h-[10.5rem] max-w-6xl ${status === 'bust' ? 'c7-shake' : ''}`}
         data-testid="spotlight-cards"
       >
+        {actionCard && (
+          // An action card just drawn: it flips over here while its owner picks who gets it.
+          <div key={actionKey} className="grid justify-items-center gap-2 pr-6 mr-2 border-r border-white/15">
+            <div className="c7-glow rounded-3xl [--glow:rgba(251,191,36,0.7)]">
+              <Card card={actionCard} size={cardSize} flipDelay={0} />
+            </div>
+            <span className="max-w-[10rem] text-sm font-semibold text-amber-200">
+              {name} is choosing who gets {ACTION_NAMES[actionCard]}
+            </span>
+          </div>
+        )}
         {cards.length ? (
           cards.map(({ card, i }) => (
-            <Card key={i} card={card} size={cardSize} bad={status === 'bust' && i === lastIndex} flipDelay={delays.current.get(i) ?? null} />
+            <Card
+              key={i}
+              card={card}
+              size={cardSize}
+              bad={status === 'bust' && i === lastIndex}
+              animate={false}
+              flipDelay={delays.current.get(i) ?? null}
+            />
           ))
         ) : (
-          <span className="self-center text-xl text-gray-500">No cards yet</span>
+          !actionCard && <span className="self-center text-xl text-gray-500">No cards yet</span>
         )}
       </div>
 
