@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Laptop-height windows: `short:` tightens spacing so the board fits without scrolling. */
+@custom-variant short (@media (max-height: 800px));
