@@ -22,14 +22,19 @@ export const TARGET_MIN = 25;
 export const TARGET_MAX = 1000;
 export const DEFAULT_TARGET = 200;
 export const TIMER_OPTIONS = [0, 15, 30, 60];
+// Seconds before the next player's phone unlocks after another player's turn, so turns
+// can't fly by. The same player hitting again only waits a short beat for the card to land.
+export const PACE_OPTIONS = [3, 4, 5];
+export const DEFAULT_PACE = 4;
+export const HIT_BEAT_MS = 1500;
 export const CHOICE_KINDS = ['freeze', 'flip3', 'second'];
 const LOG_SIZE = 30;
 
-export function createGame({ gameId, target = DEFAULT_TARGET, turnSeconds = 0 }) {
+export function createGame({ gameId, target = DEFAULT_TARGET, turnSeconds = 0, pace = DEFAULT_PACE }) {
   return {
     gameId,
     phase: 'lobby', // lobby | playing | roundEnd | gameOver
-    settings: { target, turnSeconds },
+    settings: { target, turnSeconds, pace },
     players: {}, // { [playerId]: { name, clientId, left? } } (clientId never leaves the host)
     order: [], // seat order; players who leave mid-game stay here, marked left
     totals: {},
@@ -54,6 +59,9 @@ export function cleanName(value) {
     .slice(0, NAME_MAX)
     .trim();
 }
+
+// Saved games from before pacing existed have no pace setting.
+export const paceOf = (s) => (PACE_OPTIONS.includes(s.settings.pace) ? s.settings.pace : DEFAULT_PACE);
 
 // Players still in the game (not removed), in seat order.
 export const seatedIds = (s) => s.order.filter((id) => s.players[id] && !s.players[id].left);
@@ -95,7 +103,10 @@ export function gameReducer(state, action) {
 function phoneMayAct(s, a) {
   if (a.gameId !== s.gameId) return false;
   if (a.type === 'join') return true;
-  return s.players[a.playerId]?.clientId === a.clientId && !s.players[a.playerId].left;
+  if (s.players[a.playerId]?.clientId !== a.clientId || s.players[a.playerId].left) return false;
+  // Taps that land before the pause is over are dropped; the phone shows them as locked.
+  const gated = a.type === 'hit' || a.type === 'stay' || a.type === 'choose';
+  return !(gated && s.round?.unlockAt != null && a.now != null && a.now < s.round.unlockAt);
 }
 
 function apply(s, a, ctx) {
@@ -189,8 +200,8 @@ function kick(s, playerId) {
   return true;
 }
 
-function changeSettings(s, { target, turnSeconds }) {
-  const next = { ...s.settings };
+function changeSettings(s, { target, turnSeconds, pace }) {
+  const next = { ...s.settings, pace: paceOf(s) };
   if (target != null) {
     if (s.phase !== 'lobby' || !Number.isInteger(target) || target < TARGET_MIN || target > TARGET_MAX) return false;
     next.target = target;
@@ -199,7 +210,12 @@ function changeSettings(s, { target, turnSeconds }) {
     if (!TIMER_OPTIONS.includes(turnSeconds)) return false;
     next.turnSeconds = turnSeconds;
   }
-  if (next.target === s.settings.target && next.turnSeconds === s.settings.turnSeconds) return false;
+  if (pace != null) {
+    if (!PACE_OPTIONS.includes(pace)) return false;
+    next.pace = pace;
+  }
+  const same = next.target === s.settings.target && next.turnSeconds === s.settings.turnSeconds && next.pace === s.settings.pace;
+  if (same) return false;
   s.settings = next;
   return true;
 }
@@ -253,6 +269,8 @@ function startRound(s, ctx) {
     turnSeq: (prev?.turnSeq ?? 0) + 1, // bumps with every new decision, so stale taps are ignored
     deadline: null, // server time the pending decision times out, if the timer is on
     cursor: dealer, // the last player asked to Hit or Stay
+    lastAsked: null, // who the last decision was for, to tell a repeat Hit from a new turn
+    unlockAt: null, // server time the pending decision opens to phones (the pause between turns)
     collected: null, // who got seven different numbers
     exhausted: false,
     points: null,
@@ -286,12 +304,16 @@ function ask(s, pending, ctx) {
   const r = s.round;
   r.pending = pending;
   r.turnSeq += 1;
-  r.deadline = s.settings.turnSeconds ? ctx.now + s.settings.turnSeconds * 1000 : null;
+  r.unlockAt = ctx.now + (r.lastAsked === pending.pid ? HIT_BEAT_MS : paceOf(s) * 1000);
+  r.lastAsked = pending.pid;
+  // The turn timer starts once the phone unlocks.
+  r.deadline = s.settings.turnSeconds ? r.unlockAt + s.settings.turnSeconds * 1000 : null;
 }
 
 function clearPending(s) {
   s.round.pending = null;
   s.round.deadline = null;
+  s.round.unlockAt = null;
 }
 
 function drawCard(s, ctx) {
