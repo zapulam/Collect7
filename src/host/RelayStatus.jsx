@@ -19,6 +19,13 @@ export default function RelayStatus({ relay }) {
   if (relay.status === 'superseded') {
     return <span className="text-xs text-amber-300">This game is now running in another tab.</span>;
   }
+  if (relay.status === 'denied') {
+    return (
+      <span className="max-w-sm text-right text-xs text-red-300" role="alert">
+        The database rejected this game, so phones can&apos;t join. Publish database.rules.json in the Firebase console.
+      </span>
+    );
+  }
   if (relay.status === 'error') {
     return (
       <button type="button" onClick={relay.retry} className="inline-flex items-center gap-1.5 text-xs text-red-300 hover:text-red-200">

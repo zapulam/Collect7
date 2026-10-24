@@ -8,10 +8,12 @@ const TAB_ID = randomId();
 const NOBODY = new Set();
 
 // Hosts the game in a Firebase room: mirrors `view` (the public game) to the room and
-// hands each valid phone request to `onAction`. Status: off | connecting | live | superseded | error.
+// hands each valid phone request to `onAction`. Status: off | connecting | live | superseded | error,
+// or denied when the database accepts the room but its rules reject the game itself.
 export function useHostRelay({ roomId, view, onAction, onOffset }) {
   const [handle, setHandle] = useState(null);
   const [status, setStatus] = useState('connecting');
+  const [denied, setDenied] = useState(false);
   const [online, setOnline] = useState({ roomId: null, ids: NOBODY });
   const [attempt, setAttempt] = useState(0);
   const callbacks = useRef({ onAction, onOffset });
@@ -25,8 +27,12 @@ export function useHostRelay({ roomId, view, onAction, onOffset }) {
     let closed = false;
     let room = null;
     setStatus('connecting');
+    setDenied(false);
     openHostRoom(roomId, {
       tabId: TAB_ID,
+      onPublish: (error) => {
+        if (!closed) setDenied(String(error?.code ?? error?.message ?? '').includes('PERMISSION_DENIED'));
+      },
       onRequest: (raw) => {
         const action = sanitizeRequest(raw);
         if (action && !closed) callbacks.current.onAction(action);
@@ -67,7 +73,7 @@ export function useHostRelay({ roomId, view, onAction, onOffset }) {
   }, [handle, view]);
 
   return {
-    status: roomId ? status : 'off',
+    status: !roomId ? 'off' : status === 'live' && denied ? 'denied' : status,
     online: online.roomId === roomId ? online.ids : NOBODY,
     retry: () => setAttempt((n) => n + 1),
   };
