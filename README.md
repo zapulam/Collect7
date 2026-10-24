@@ -18,6 +18,9 @@ Collect7 is a press-your-luck card game for 2 to 12 players. On your turn you ei
 - **🔁 Smart Turns**: Round-robin turns, a rotating dealer, and a reshuffle of the discard pile when the deck runs out
 - **⏱️ Turn Timer**: Optional timer that stays automatically for a stalled player
 - **🕹️ Master Controls**: Stay or choose for a stuck player, and remove players
+- **🔦 Spotlight Turns**: The big screen puts the current player's hand front and centre, with everyone else's score and a condensed hand along the bottom
+- **🎞️ Card Flips & Counters**: New cards flip over one at a time and scores roll like an old mechanical counter, with stamps for a bust, a banked score, a freeze and Collect 7
+- **⏳ Paced Turns**: A 3, 4 or 5 second pause between turns locks the next player's phone, so nobody can rush
 - **📊 Phone Tally**: Per-number count of cards on the table and left in the deck, plus your chance of busting if you hit
 - **🏆 Scoring**: Round scores and running totals, with ties at the target forcing another round
 - **🎉 Confetti & Animations**: Celebrations for wins and Collect 7
@@ -149,7 +152,9 @@ Open the board at the **Network** address Vite prints (not `localhost`), then sc
 
 ### Previewing the phone UI
 
-With `npm run dev` running, open `http://localhost:5173/Collect7/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone. This page only exists in development builds.
+With `npm run dev` running, open `http://localhost:5173/Collect7/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone.
+
+Open `http://localhost:5173/Collect7/?preview=host` to watch the big screen with bot players taking turns, including the pause between turns, card flips, score counters and bust animation. Both pages only exist in development builds.
 
 ## 🌐 Deployment
 
