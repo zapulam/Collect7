@@ -119,7 +119,7 @@ The site is a static GitHub Pages app. Phones and the big screen talk through a 
 
 1. Go to the [Firebase console](https://console.firebase.google.com) and **Add project**. Google Analytics isn't needed.
 2. Open **Build → Realtime Database → Create Database**, pick a location, and choose **Start in locked mode**.
-3. In the **Rules** tab, replace everything with the contents of [`database.rules.json`](database.rules.json) and click **Publish**.
+3. In the **Rules** tab, replace everything with the contents of [`database.rules.json`](database.rules.json) and click **Publish**. Or, with the [Firebase CLI](https://firebase.google.com/docs/cli): `npx firebase-tools login`, then `npx firebase-tools deploy --only database` (the project is set in `.firebaserc`). If the rules are missing or out of date, the big screen shows "The database rejected this game" and phones can't join.
 4. Copy the **database URL** (top of the Data tab) and the **project ID** (Project settings → General) into `src/lib/firebaseConfig.js`.
 5. Merge into `main`, which deploys the site.
 
@@ -146,6 +146,10 @@ Open the board at the **Network** address Vite prints (not `localhost`), then sc
 - `npm run preview`: Preview production build
 - `npm test`: Run the engine tests (vitest)
 - `npm run lint`: Run ESLint
+
+### Previewing the phone UI
+
+With `npm run dev` running, open `http://localhost:5173/Collect7/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone. This page only exists in development builds.
 
 ## 🌐 Deployment
 

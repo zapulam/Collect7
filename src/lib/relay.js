@@ -69,7 +69,8 @@ const openHosts = new Map();
 
 // The big screen. Phone requests are removed as soon as they arrive and handed to
 // onRequest. If another tab takes over the room, this one stops and calls onSuperseded.
-export async function openHostRoom(roomId, { tabId, onRequest, onPresence, onOffset, onSuperseded }) {
+// onPublish(error) reports every attempt to write the game: null when it went through.
+export async function openHostRoom(roomId, { tabId, onRequest, onPresence, onOffset, onSuperseded, onPublish }) {
   openHosts.set(roomId, (openHosts.get(roomId) ?? 0) + 1);
   const release = () => {
     const remaining = openHosts.get(roomId) - 1;
@@ -148,7 +149,14 @@ export async function openHostRoom(roomId, { tabId, onRequest, onPresence, onOff
 
   return {
     publish(view) {
-      if (!closed) set(ref(db, `${room}/game`), toWire(view)).catch(console.error);
+      if (closed) return;
+      set(ref(db, `${room}/game`), toWire(view)).then(
+        () => onPublish(null),
+        (error) => {
+          console.error(error);
+          onPublish(error);
+        }
+      );
     },
     close,
     get superseded() {
