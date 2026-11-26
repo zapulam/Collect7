@@ -2,7 +2,7 @@
 
 Collect7 is a party version of the push-your-luck card game **Flip 7**, built with React, Tailwind CSS, and Firebase. One laptop or TV is the table; everyone plays from their phone.
 
-Play for free [here](https://zapulam.github.io/Collect7).
+Play for free [here](https://collect7-b4930.web.app).
 
 ![React](https://img.shields.io/badge/React-19.1-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC) ![Vite](https://img.shields.io/badge/Vite-6-646CFF) ![Firebase](https://img.shields.io/badge/Firebase-Realtime_Database-FFCA28)
 
@@ -56,7 +56,7 @@ Collect7 is a press-your-luck card game for 2 to 12 players. On your turn you ei
    ```
 
 4. **Open your browser**
-   Navigate to `http://localhost:5173/Collect7/` (or the address shown in your terminal)
+   Navigate to `http://localhost:5173/` (or the address shown in your terminal)
 
 ### Building for Production
 
@@ -109,7 +109,7 @@ Everyone plays from their own phone, so the big screen can show every hand witho
 3. Your phone shows your hand, **Hit** and **Stay**, a target picker when you play a Freeze or Flip Three, and the tally of cards on the table and left in the deck.
 4. Round scores and totals show on every phone between rounds.
 
-The QR code is `https://zapulam.github.io/Collect7/?room=CODE`. A `?room=` link loads the phone view.
+The QR code is `https://collect7-b4930.web.app/?room=CODE`. A `?room=` link loads the phone view.
 
 ### How it works
 
@@ -126,7 +126,7 @@ The site is a static GitHub Pages app. Phones and the big screen talk through a 
 2. Open **Build → Realtime Database → Create Database**, pick a location, and choose **Start in locked mode**.
 3. In the **Rules** tab, replace everything with the contents of [`database.rules.json`](database.rules.json) and click **Publish**. Or, with the [Firebase CLI](https://firebase.google.com/docs/cli): `npx firebase-tools login`, then `npx firebase-tools deploy --only database` (the project is set in `.firebaserc`). If the rules are missing or out of date, the big screen shows "The database rejected this game" and phones can't join.
 4. Copy the **database URL** (top of the Data tab) and the **project ID** (Project settings → General) into `src/lib/firebaseConfig.js`.
-5. Merge into `main`, which deploys the site.
+5. Set up the deploy secret described under [Deployment](#-deployment), then merge into `main`, which deploys the site.
 
 These two values are public identifiers, not secrets: the rules decide what anyone can read or write. They keep the database root private, so rooms can't be listed, they only accept valid room codes, and inside a room they only accept data shaped like the game's (no extra fields, checked values, capped lengths). No sign-in is used, so there are no API keys to manage.
 
@@ -154,15 +154,24 @@ Open the board at the **Network** address Vite prints (not `localhost`), then sc
 
 ### Previewing the phone UI
 
-With `npm run dev` running, open `http://localhost:5173/Collect7/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone.
+With `npm run dev` running, open `http://localhost:5173/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone.
 
-Open `http://localhost:5173/Collect7/?preview=host` to watch the big screen with bot players taking turns, including the pause between turns, card flips, score counters and bust animation. Both pages only exist in development builds.
+Open `http://localhost:5173/?preview=host` to watch the big screen with bot players taking turns, including the pause between turns, card flips, score counters and bust animation. Both pages only exist in development builds.
 
 ## 🌐 Deployment
 
-Merging into `main` deploys the site automatically. A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests, builds and publishes it to GitHub Pages. Pull requests get the same lint, test and build check, without publishing.
+The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting) at `https://collect7-b4930.web.app`. A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests and builds the site. Merging into `main` then publishes it to the live channel. Each pull request from this repo gets its own preview URL, which the workflow adds as a PR comment.
 
-One-time setup: in the repo's **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
+One-time setup: the workflow deploys with a Firebase service account key stored as a repo secret.
+
+1. In the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts?project=collect7-b4930), create a service account (for example `github-deploy`) and grant it the **Firebase Hosting Admin** role.
+2. Create a JSON key for that service account and copy the whole file.
+3. In the repo's **Settings → Secrets and variables → Actions**, add a repository secret named `FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930` containing the JSON.
+4. Delete the local JSON key file once it's saved as a secret.
+
+Pull requests from forks don't get repo secrets, so they run the lint, test and build checks without a preview deploy.
+
+To deploy by hand instead, run `npm run build` and then `npx firebase-tools deploy --only hosting` after logging in.
 
 ## 🤝 Contributing
 
