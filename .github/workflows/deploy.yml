@@ -1,5 +1,7 @@
-# Lints, tests and builds every pull request, and publishes main to GitHub Pages.
-# One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+# Lints, tests and builds every push and pull request. Pushes to main deploy the live
+# site to Firebase Hosting; same-repo pull requests get a preview channel.
+# One-time setup: add a service account JSON key as the repo secret
+# FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 (see README > Deployment).
 name: Build and deploy
 
 on:
@@ -18,6 +20,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,21 +33,18 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy live site
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          path: dist
-
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 }}
+          channelId: live
+          projectId: collect7-b4930
+      - name: Deploy preview channel
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 }}
+          projectId: collect7-b4930
