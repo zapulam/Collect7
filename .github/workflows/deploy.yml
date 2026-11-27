@@ -1,7 +1,7 @@
 # Lints, tests and builds every push and pull request. Pushes to main deploy the live
 # site to Firebase Hosting; same-repo pull requests get a preview channel.
 # One-time setup: add a service account JSON key as the repo secret
-# FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 (see README > Deployment).
+# FIREBASE_SERVICE_ACCOUNT (see README > Deployment).
 name: Build and deploy
 
 on:
@@ -21,6 +21,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
+      checks: write
       contents: read
       pull-requests: write
     steps:
@@ -38,7 +39,7 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: collect7-b4930
       - name: Deploy preview channel
@@ -46,5 +47,5 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930 }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: collect7-b4930

@@ -164,7 +164,7 @@ One-time setup: the workflow deploys with a service account key stored as a GitH
 
 1. In the [Google Cloud console's Service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts), pick the Firebase project from the project selector at the top, then click **Create service account** (for example `github-deploy`) and grant it the **Firebase Hosting Admin** role.
 2. Open the new service account, go to **Keys → Add key → Create new key**, choose **JSON**, and open the file that downloads.
-3. In the repo's **Settings → Secrets and variables → Actions**, add a repository secret named `FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930` containing the JSON.
+3. In the repo's **Settings → Secrets and variables → Actions**, add a repository secret named `FIREBASE_SERVICE_ACCOUNT` containing the JSON.
 4. Delete the local JSON key file once it's saved as a secret.
 
 Pull requests from forks don't get repo secrets, so they run the lint, test and build checks without a preview deploy.
