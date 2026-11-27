@@ -14,7 +14,7 @@
     "@tailwindcss/vite": "^4.3.5",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.19.0",
-    "lucide-react": "^1.78.0",
+    "lucide-react": "^1.79.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
