@@ -2,8 +2,6 @@
 
 Collect7 is a party version of the push-your-luck card game **Flip 7**, built with React, Tailwind CSS, and Firebase. One laptop or TV is the table; everyone plays from their phone.
 
-Play for free [here](https://collect7-b4930.web.app).
-
 ![React](https://img.shields.io/badge/React-19.1-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC) ![Vite](https://img.shields.io/badge/Vite-6-646CFF) ![Firebase](https://img.shields.io/badge/Firebase-Realtime_Database-FFCA28)
 
 ## 🎮 Game Overview
@@ -109,7 +107,7 @@ Everyone plays from their own phone, so the big screen can show every hand witho
 3. Your phone shows your hand, **Hit** and **Stay**, a target picker when you play a Freeze or Flip Three, and the tally of cards on the table and left in the deck.
 4. Round scores and totals show on every phone between rounds.
 
-The QR code is `https://collect7-b4930.web.app/?room=CODE`. A `?room=` link loads the phone view.
+The QR code is the site's address with `?room=CODE` on the end. A `?room=` link loads the phone view.
 
 ### How it works
 
@@ -160,12 +158,12 @@ Open `http://localhost:5173/?preview=host` to watch the big screen with bot play
 
 ## 🌐 Deployment
 
-The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting) at `https://collect7-b4930.web.app`. A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests and builds the site. Merging into `main` then publishes it to the live channel. Each pull request from this repo gets its own preview URL, which the workflow adds as a PR comment.
+The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting). A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests and builds the site. Merging into `main` then publishes it to the live channel. Each pull request from this repo gets its own preview URL, which the workflow adds as a PR comment.
 
-One-time setup: the workflow deploys with a Firebase service account key stored as a repo secret.
+One-time setup: the workflow deploys with a service account key stored as a GitHub repo secret. The key is made in the Google Cloud console, not the Firebase console (every Firebase project is also a Google Cloud project), and the secret is saved in GitHub.
 
-1. In the [Google Cloud console](https://console.cloud.google.com/iam-admin/serviceaccounts?project=collect7-b4930), create a service account (for example `github-deploy`) and grant it the **Firebase Hosting Admin** role.
-2. Create a JSON key for that service account and copy the whole file.
+1. In the [Google Cloud console's Service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts), pick the Firebase project from the project selector at the top, then click **Create service account** (for example `github-deploy`) and grant it the **Firebase Hosting Admin** role.
+2. Open the new service account, go to **Keys → Add key → Create new key**, choose **JSON**, and open the file that downloads.
 3. In the repo's **Settings → Secrets and variables → Actions**, add a repository secret named `FIREBASE_SERVICE_ACCOUNT_COLLECT7_B4930` containing the JSON.
 4. Delete the local JSON key file once it's saved as a secret.
 
