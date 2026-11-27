@@ -124,7 +124,7 @@ The site is a static GitHub Pages app. Phones and the big screen talk through a 
 2. Open **Build → Realtime Database → Create Database**, pick a location, and choose **Start in locked mode**.
 3. In the **Rules** tab, replace everything with the contents of [`database.rules.json`](database.rules.json) and click **Publish**. Or, with the [Firebase CLI](https://firebase.google.com/docs/cli): `npx firebase-tools login`, then `npx firebase-tools deploy --only database` (the project is set in `.firebaserc`). If the rules are missing or out of date, the big screen shows "The database rejected this game" and phones can't join.
 4. Copy the **database URL** (top of the Data tab) and the **project ID** (Project settings → General) into `src/lib/firebaseConfig.js`.
-5. Set up the deploy secret described under [Deployment](#-deployment), then merge into `main`, which deploys the site.
+5. Set up the deploy described under [Deployment](#-deployment), then merge into `main`, which deploys the site.
 
 These two values are public identifiers, not secrets: the rules decide what anyone can read or write. They keep the database root private, so rooms can't be listed, they only accept valid room codes, and inside a room they only accept data shaped like the game's (no extra fields, checked values, capped lengths). No sign-in is used, so there are no API keys to manage.
 
@@ -158,16 +158,54 @@ Open `http://localhost:5173/?preview=host` to watch the big screen with bot play
 
 ## 🌐 Deployment
 
-The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting). A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests and builds the site. Merging into `main` then publishes it to the live channel. Each pull request from this repo gets its own preview URL, which the workflow adds as a PR comment.
+The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting). A GitHub Actions workflow (`.github/workflows/deploy.yml`) has two jobs:
 
-One-time setup: the workflow deploys with a service account key stored as a GitHub repo secret. The key is made in the Google Cloud console, not the Firebase console (every Firebase project is also a Google Cloud project), and the secret is saved in GitHub.
+- **`ci`** installs, lints, tests and builds. It runs on every push and pull request (including from forks) with read-only access and no credentials.
+- **`deploy`** publishes the built site to Firebase Hosting. It only runs for pushes to `main`, inside the protected `production` environment, and it signs in to Google Cloud with [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation): GitHub proves its identity for that one run, so there is no service account key or other secret to store or leak.
 
-1. In the [Google Cloud console's Service accounts page](https://console.cloud.google.com/iam-admin/serviceaccounts), pick the Firebase project from the project selector at the top, then click **Create service account** (for example `github-deploy`) and grant it the **Firebase Hosting Admin** role.
-2. Open the new service account, go to **Keys → Add key → Create new key**, choose **JSON**, and open the file that downloads.
-3. In the repo's **Settings → Secrets and variables → Actions**, add a repository secret named `FIREBASE_SERVICE_ACCOUNT` containing the JSON.
-4. Delete the local JSON key file once it's saved as a secret.
+Actions are pinned to commit SHAs and Dependabot (`.github/dependabot.yml`) opens weekly update PRs. The `firebase-tools` version in the workflow is pinned by hand.
 
-Pull requests from forks don't get repo secrets, so they run the lint, test and build checks without a preview deploy.
+### One-time setup
+
+1. In the Firebase console, open **Build → Hosting** and click **Get started** (you can skip the CLI steps it shows).
+2. In the [Google Cloud console](https://console.cloud.google.com), pick the Firebase project, open Cloud Shell, and run the commands below with your own values. They create a service account that can only deploy Hosting, and let GitHub Actions act as it only for this repository, the `main` branch and the `production` environment.
+
+```bash
+PROJECT_ID=your-firebase-project-id
+GITHUB_REPO=owner/repo
+SA=github-deploy
+SA_EMAIL="$SA@$PROJECT_ID.iam.gserviceaccount.com"
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+REPO_ID=$(curl -s "https://api.github.com/repos/$GITHUB_REPO" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project "$PROJECT_ID"
+
+gcloud iam service-accounts create "$SA" --project "$PROJECT_ID" --display-name "GitHub deploy"
+for ROLE in roles/firebasehosting.admin roles/serviceusage.serviceUsageConsumer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$SA_EMAIL" --role "$ROLE" --condition=None
+done
+
+gcloud iam workload-identity-pools create github --project "$PROJECT_ID" --location global --display-name "GitHub"
+gcloud iam workload-identity-pools providers create-oidc github-actions \
+  --project "$PROJECT_ID" --location global --workload-identity-pool github \
+  --issuer-uri "https://token.actions.githubusercontent.com" \
+  --attribute-mapping "google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref,attribute.environment=assertion.environment" \
+  --attribute-condition "assertion.repository_id == '$REPO_ID' && assertion.ref == 'refs/heads/main' && assertion.environment == 'production'"
+
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" --project "$PROJECT_ID" \
+  --role roles/iam.workloadIdentityUser \
+  --member "principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository_id/$REPO_ID"
+
+gcloud iam workload-identity-pools providers describe github-actions \
+  --project "$PROJECT_ID" --location global --workload-identity-pool github --format 'value(name)'
+echo "$SA_EMAIL"
+```
+
+3. In GitHub, open **Settings → Environments → New environment**, name it `production`, and under **Deployment branches and tags** choose **Selected branches and tags** and add `main`. Optionally add yourself under **Required reviewers** to approve each deploy.
+4. In that environment's **Environment variables**, add `GCP_WORKLOAD_IDENTITY_PROVIDER` (the `projects/.../providers/github-actions` path printed by the `describe` command) and `GCP_SERVICE_ACCOUNT` (the service account email printed last). These are identifiers, not secrets.
+5. In **Settings → Rules → Rulesets**, require the `ci` status check before merging into `main`.
+
+`firebase.json` also sets long-lived caching for the hashed files in `/assets/`, no caching for `index.html`, and security headers including a Content Security Policy. If the game ever loads something from another site, allow it in that policy or the browser will block it.
 
 To deploy by hand instead, run `npm run build` and then `npx firebase-tools deploy --only hosting` after logging in.
 
