@@ -30,4 +30,9 @@ export default defineConfig([
       'react/jsx-uses-vars': 'error',
     },
   },
+  {
+    // The entry point never hot-reloads as a component, so the rule doesn't apply.
+    files: ['src/main.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])
