@@ -2,8 +2,6 @@
 
 Collect7 is a party version of the push-your-luck card game **Flip 7**, built with React, Tailwind CSS, and Firebase. One laptop or TV is the table; everyone plays from their phone.
 
-Play for free [here](https://zapulam.github.io/Collect7).
-
 ![React](https://img.shields.io/badge/React-19.1-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC) ![Vite](https://img.shields.io/badge/Vite-6-646CFF) ![Firebase](https://img.shields.io/badge/Firebase-Realtime_Database-FFCA28)
 
 ## 🎮 Game Overview
@@ -56,7 +54,7 @@ Collect7 is a press-your-luck card game for 2 to 12 players. On your turn you ei
    ```
 
 4. **Open your browser**
-   Navigate to `http://localhost:5173/Collect7/` (or the address shown in your terminal)
+   Navigate to `http://localhost:5173/` (or the address shown in your terminal)
 
 ### Building for Production
 
@@ -109,11 +107,11 @@ Everyone plays from their own phone, so the big screen can show every hand witho
 3. Your phone shows your hand, **Hit** and **Stay**, a target picker when you play a Freeze or Flip Three, and the tally of cards on the table and left in the deck.
 4. Round scores and totals show on every phone between rounds.
 
-The QR code is `https://zapulam.github.io/Collect7/?room=CODE`. A `?room=` link loads the phone view.
+The QR code is the site's address with `?room=CODE` on the end. A `?room=` link loads the phone view.
 
 ### How it works
 
-The site is a static GitHub Pages app. Phones and the big screen talk through a [Firebase Realtime Database](https://firebase.google.com/docs/database) (free Spark plan) that the browser calls directly.
+The site is a static app on Firebase Hosting. Phones and the big screen talk through a [Firebase Realtime Database](https://firebase.google.com/docs/database) (free Spark plan) that the browser calls directly.
 
 - **The big screen runs the game.** `src/lib/engine.js` is a pure reducer holding the whole state, including the deck order. The big screen saves it in localStorage.
 - The big screen publishes a public view of the game (no deck order) to `rooms/{code}/game`.
@@ -126,7 +124,7 @@ The site is a static GitHub Pages app. Phones and the big screen talk through a 
 2. Open **Build → Realtime Database → Create Database**, pick a location, and choose **Start in locked mode**.
 3. In the **Rules** tab, replace everything with the contents of [`database.rules.json`](database.rules.json) and click **Publish**. Or, with the [Firebase CLI](https://firebase.google.com/docs/cli): `npx firebase-tools login`, then `npx firebase-tools deploy --only database` (the project is set in `.firebaserc`). If the rules are missing or out of date, the big screen shows "The database rejected this game" and phones can't join.
 4. Copy the **database URL** (top of the Data tab) and the **project ID** (Project settings → General) into `src/lib/firebaseConfig.js`.
-5. Merge into `main`, which deploys the site.
+5. Set up the deploy described under [Deployment](#-deployment), then merge into `main`, which deploys the site.
 
 These two values are public identifiers, not secrets: the rules decide what anyone can read or write. They keep the database root private, so rooms can't be listed, they only accept valid room codes, and inside a room they only accept data shaped like the game's (no extra fields, checked values, capped lengths). No sign-in is used, so there are no API keys to manage.
 
@@ -154,15 +152,60 @@ Open the board at the **Network** address Vite prints (not `localhost`), then sc
 
 ### Previewing the phone UI
 
-With `npm run dev` running, open `http://localhost:5173/Collect7/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone.
+With `npm run dev` running, open `http://localhost:5173/?preview` to see and play the phone screens without a database. The real game engine runs in the page, and buttons along the top jump between the join form, lobby, your turn, waiting, round over and game over. Shrink the window to phone width (or use your browser's device toolbar) to see it as a phone.
 
-Open `http://localhost:5173/Collect7/?preview=host` to watch the big screen with bot players taking turns, including the pause between turns, card flips, score counters and bust animation. Both pages only exist in development builds.
+Open `http://localhost:5173/?preview=host` to watch the big screen with bot players taking turns, including the pause between turns, card flips, score counters and bust animation. Both pages only exist in development builds.
 
 ## 🌐 Deployment
 
-Merging into `main` deploys the site automatically. A GitHub Actions workflow (`.github/workflows/deploy.yml`) installs, lints, tests, builds and publishes it to GitHub Pages. Pull requests get the same lint, test and build check, without publishing.
+Merging into `main` deploys the site to [Firebase Hosting](https://firebase.google.com/docs/hosting). The workflow (`.github/workflows/deploy.yml`) has two jobs:
 
-One-time setup: in the repo's **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
+- **`ci`** lints, tests and builds on every push and pull request, with read-only access and no credentials.
+- **`deploy`** publishes the build. It only runs for pushes to `main`, in the `production` environment, and signs in to Google Cloud with [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation), so there is no service account key or other secret to store or leak.
+
+Actions are pinned to commit SHAs and Dependabot opens weekly update PRs. The `firebase-tools` version in the workflow is pinned by hand.
+
+### One-time setup
+
+1. In the Firebase console, open **Build → Hosting** and click **Get started** (skip the CLI steps it shows).
+2. In the [Google Cloud console](https://console.cloud.google.com), open Cloud Shell and run the commands below with your own values. They create a service account that can only deploy Hosting, usable only by this repository's `main` branch and `production` environment.
+
+```bash
+PROJECT_ID=your-firebase-project-id
+GITHUB_REPO=owner/repo
+SA=github-deploy
+SA_EMAIL="$SA@$PROJECT_ID.iam.gserviceaccount.com"
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+REPO_ID=$(curl -s "https://api.github.com/repos/$GITHUB_REPO" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project "$PROJECT_ID"
+
+gcloud iam service-accounts create "$SA" --project "$PROJECT_ID" --display-name "GitHub deploy"
+for ROLE in roles/firebasehosting.admin roles/serviceusage.serviceUsageConsumer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$SA_EMAIL" --role "$ROLE" --condition=None
+done
+
+gcloud iam workload-identity-pools create github --project "$PROJECT_ID" --location global --display-name "GitHub"
+gcloud iam workload-identity-pools providers create-oidc github-actions \
+  --project "$PROJECT_ID" --location global --workload-identity-pool github \
+  --issuer-uri "https://token.actions.githubusercontent.com" \
+  --attribute-mapping "google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.ref=assertion.ref,attribute.environment=assertion.environment" \
+  --attribute-condition "assertion.repository_id == '$REPO_ID' && assertion.ref == 'refs/heads/main' && assertion.environment == 'production'"
+
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" --project "$PROJECT_ID" \
+  --role roles/iam.workloadIdentityUser \
+  --member "principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository_id/$REPO_ID"
+
+gcloud iam workload-identity-pools providers describe github-actions \
+  --project "$PROJECT_ID" --location global --workload-identity-pool github --format 'value(name)'
+echo "$SA_EMAIL"
+```
+
+3. In GitHub, open **Settings → Environments → New environment**, name it `production`, and under **Deployment branches and tags** choose **Selected branches and tags** and add `main`. Optionally add yourself under **Required reviewers** to approve each deploy.
+4. In that environment's **Environment variables**, add `GCP_WORKLOAD_IDENTITY_PROVIDER` (the `projects/.../providers/github-actions` path printed by the `describe` command) and `GCP_SERVICE_ACCOUNT` (the service account email printed last). These are identifiers, not secrets.
+5. In **Settings → Rules → Rulesets**, require the `ci` status check before merging into `main`.
+
+`firebase.json` also sets caching and security headers, including a Content Security Policy. If the game ever loads something from another site, allow it in that policy or the browser will block it.
 
 ## 🤝 Contributing
 
