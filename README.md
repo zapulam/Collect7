@@ -111,7 +111,7 @@ The QR code is the site's address with `?room=CODE` on the end. A `?room=` link 
 
 ### How it works
 
-The site is a static GitHub Pages app. Phones and the big screen talk through a [Firebase Realtime Database](https://firebase.google.com/docs/database) (free Spark plan) that the browser calls directly.
+The site is a static app on Firebase Hosting. Phones and the big screen talk through a [Firebase Realtime Database](https://firebase.google.com/docs/database) (free Spark plan) that the browser calls directly.
 
 - **The big screen runs the game.** `src/lib/engine.js` is a pure reducer holding the whole state, including the deck order. The big screen saves it in localStorage.
 - The big screen publishes a public view of the game (no deck order) to `rooms/{code}/game`.
@@ -158,17 +158,17 @@ Open `http://localhost:5173/?preview=host` to watch the big screen with bot play
 
 ## 🌐 Deployment
 
-The site is hosted on [Firebase Hosting](https://firebase.google.com/docs/hosting). A GitHub Actions workflow (`.github/workflows/deploy.yml`) has two jobs:
+Merging into `main` deploys the site to [Firebase Hosting](https://firebase.google.com/docs/hosting). The workflow (`.github/workflows/deploy.yml`) has two jobs:
 
-- **`ci`** installs, lints, tests and builds. It runs on every push and pull request (including from forks) with read-only access and no credentials.
-- **`deploy`** publishes the built site to Firebase Hosting. It only runs for pushes to `main`, inside the protected `production` environment, and it signs in to Google Cloud with [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation): GitHub proves its identity for that one run, so there is no service account key or other secret to store or leak.
+- **`ci`** lints, tests and builds on every push and pull request, with read-only access and no credentials.
+- **`deploy`** publishes the build. It only runs for pushes to `main`, in the `production` environment, and signs in to Google Cloud with [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation), so there is no service account key or other secret to store or leak.
 
-Actions are pinned to commit SHAs and Dependabot (`.github/dependabot.yml`) opens weekly update PRs. The `firebase-tools` version in the workflow is pinned by hand.
+Actions are pinned to commit SHAs and Dependabot opens weekly update PRs. The `firebase-tools` version in the workflow is pinned by hand.
 
 ### One-time setup
 
-1. In the Firebase console, open **Build → Hosting** and click **Get started** (you can skip the CLI steps it shows).
-2. In the [Google Cloud console](https://console.cloud.google.com), pick the Firebase project, open Cloud Shell, and run the commands below with your own values. They create a service account that can only deploy Hosting, and let GitHub Actions act as it only for this repository, the `main` branch and the `production` environment.
+1. In the Firebase console, open **Build → Hosting** and click **Get started** (skip the CLI steps it shows).
+2. In the [Google Cloud console](https://console.cloud.google.com), open Cloud Shell and run the commands below with your own values. They create a service account that can only deploy Hosting, usable only by this repository's `main` branch and `production` environment.
 
 ```bash
 PROJECT_ID=your-firebase-project-id
@@ -205,9 +205,7 @@ echo "$SA_EMAIL"
 4. In that environment's **Environment variables**, add `GCP_WORKLOAD_IDENTITY_PROVIDER` (the `projects/.../providers/github-actions` path printed by the `describe` command) and `GCP_SERVICE_ACCOUNT` (the service account email printed last). These are identifiers, not secrets.
 5. In **Settings → Rules → Rulesets**, require the `ci` status check before merging into `main`.
 
-`firebase.json` also sets long-lived caching for the hashed files in `/assets/`, no caching for `index.html`, and security headers including a Content Security Policy. If the game ever loads something from another site, allow it in that policy or the browser will block it.
-
-To deploy by hand instead, run `npm run build` and then `npx firebase-tools deploy --only hosting` after logging in.
+`firebase.json` also sets caching and security headers, including a Content Security Policy. If the game ever loads something from another site, allow it in that policy or the browser will block it.
 
 ## 🤝 Contributing
 
