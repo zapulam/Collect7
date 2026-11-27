@@ -1,6 +1,4 @@
-# CI runs on every push and pull request. Pushes to main then deploy to Firebase Hosting
-# from the protected "production" environment, signing in to Google Cloud without a stored
-# key (Workload Identity Federation). One-time setup: see README > Deployment.
+# Deploys main to Firebase Hosting after CI passes. One-time setup: README > Deployment.
 name: Build and deploy
 
 on:
@@ -32,7 +30,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - if: github.event_name != 'pull_request'
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
