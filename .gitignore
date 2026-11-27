@@ -15,6 +15,10 @@ dist-ssr
 .DS_Store
 *.sw?
 
+# Service account keys
+*-firebase-adminsdk-*.json
+service-account*.json
+
 # Firebase emulator
 firebase-debug.log
 database-debug.log
